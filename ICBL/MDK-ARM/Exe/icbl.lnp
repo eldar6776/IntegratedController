@@ -1,0 +1,26 @@
+--cpu Cortex-M7.fp.sp
+".\exe\system_stm32f7xx.o"
+".\exe\stm32746g_qspi.o"
+".\exe\stm32f7xx_hal.o"
+".\exe\stm32f7xx_hal_cortex.o"
+".\exe\stm32f7xx_hal_dma.o"
+".\exe\stm32f7xx_hal_flash.o"
+".\exe\stm32f7xx_hal_flash_ex.o"
+".\exe\stm32f7xx_hal_gpio.o"
+".\exe\stm32f7xx_hal_pwr_ex.o"
+".\exe\stm32f7xx_hal_rcc.o"
+".\exe\stm32f7xx_hal_pwr.o"
+".\exe\stm32f7xx_hal_rcc_ex.o"
+".\exe\stm32f7xx_hal_sdram.o"
+".\exe\stm32f7xx_hal_crc.o"
+".\exe\stm32f7xx_hal_crc_ex.o"
+".\exe\stm32f7xx_hal_qspi.o"
+".\exe\stm32f7xx_hal_iwdg.o"
+".\exe\startup_stm32f746xx.o"
+".\exe\stm32f7xx_it.o"
+".\exe\common.o"
+".\exe\main.o"
+--library_type=microlib --strict --scatter ".\Run\icbl.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Lst\icbl.map" -o .\Exe\icbl.axf

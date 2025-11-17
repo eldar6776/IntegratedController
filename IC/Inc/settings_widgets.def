@@ -1,0 +1,173 @@
+// ===================================================================================
+// === GLAVNA LISTA WIDGETA ZA PODEŠAVANJA (X-MACRO DEFINICIJA) VERZIJA 2.0 ===
+//
+// ULOGA: Ovo je centralizovana definicija svih statičkih ID-jeva za widgete.
+// Svaka izmjena (dodavanje, brisanje) se radi ISKLJUČIVO U OVOM FAJLU.
+// Svi ID-jevi su restrukturirani i sekvencijalno prenumerisani radi bolje
+// organizacije i budućeg održavanja.
+//
+// Format je: WIDGET(NAZIV_ID, VRIJEDNOST, "KOMENTAR")
+// ===================================================================================
+
+// ===================================================================================
+// === 0x800 - 0x80F: ZAJEDNIČKE KONTROLE I NAVIGACIJA ===
+// ===================================================================================
+WIDGET( ID_Ok,                          0x800, "Zajedničko dugme 'OK' ili 'SAVE' na ekranima za podešavanja" )
+WIDGET( ID_Next,                        0x801, "Zajedničko dugme 'NEXT' za prelazak između ekrana za podešavanja" )
+WIDGET( ID_SET_DEFAULTS,                0x802, "Dugme za vraćanje na fabričke postavke (Ekran 6)" )
+WIDGET( ID_SYSRESTART,                  0x803, "Dugme za softverski restart uređaja (Ekran 6)" )
+
+// ===================================================================================
+// === 0x810 - 0x82F: EKRAN 1 - PODEŠAVANJA TERMOSTATA I VENTILATORA (LOKALNO) ===
+// ===================================================================================
+WIDGET( ID_ThstControl,                 0x810, "RADIO za mod rada termostata (Grijanje/Hlađenje/Off)" )
+WIDGET( ID_FanControl,                  0x811, "RADIO za mod rada ventilatora (ON-OFF / 3 Brzine)" )
+WIDGET( ID_MaxSetpoint,                 0x812, "SPINBOX za maksimalnu dozvoljenu temperaturu" )
+WIDGET( ID_MinSetpoint,                 0x813, "SPINBOX za minimalnu dozvoljenu temperaturu" )
+WIDGET( ID_FanDiff,                     0x814, "SPINBOX za temperaturnu razliku (histerezu) za ventilator" )
+WIDGET( ID_FanLowBand,                  0x815, "SPINBOX za temperaturni opseg za nisku brzinu ventilatora" )
+WIDGET( ID_FanHiBand,                   0x816, "SPINBOX za temperaturni opseg za visoku brzinu ventilatora" )
+WIDGET( ID_THST_GROUP,                  0x817, "SPINBOX za ID grupe kojoj termostat pripada" )
+WIDGET( ID_THST_MASTER,                 0x818, "CHECKBOX za postavljanje uređaja kao 'Master' u grupi" )
+
+// ===================================================================================
+// === 0x830 - 0x84F: EKRAN 2 - PODEŠAVANJA EKRANA I VREMENA ===
+// ===================================================================================
+WIDGET( ID_DisplayHighBrightness,       0x830, "SPINBOX za visoku (radnu) svjetlinu ekrana" )
+WIDGET( ID_DisplayLowBrightness,        0x831, "SPINBOX za nisku (screensaver) svjetlinu ekrana" )
+WIDGET( ID_ScrnsvrTimeout,              0x832, "SPINBOX za vrijeme neaktivnosti za ulazak u screensaver (s)" )
+WIDGET( ID_ScrnsvrEnableHour,           0x833, "SPINBOX za sat automatske aktivacije screensavera" )
+WIDGET( ID_ScrnsvrDisableHour,          0x834, "SPINBOX za sat automatske deaktivacije screensavera" )
+WIDGET( ID_ScrnsvrClkColour,            0x835, "SPINBOX za odabir boje sata na screensaveru" )
+WIDGET( ID_ScrnsvrClock,                0x836, "CHECKBOX za omogućavanje/onemogućavanje prikaza sata" )
+WIDGET( ID_Hour,                        0x837, "SPINBOX za podešavanje sata (RTC)" )
+WIDGET( ID_Minute,                      0x838, "SPINBOX za podešavanje minute (RTC)" )
+WIDGET( ID_Day,                         0x839, "SPINBOX za podešavanje dana u mjesecu (RTC)" )
+WIDGET( ID_Month,                       0x83A, "SPINBOX za podešavanje mjeseca (RTC)" )
+WIDGET( ID_Year,                        0x83B, "SPINBOX za podešavanje godine (RTC)" )
+WIDGET( ID_WeekDay,                     0x83C, "DROPDOWN za odabir dana u sedmici (RTC)" )
+
+// ===================================================================================
+// === 0x850 - 0x85F: EKRAN 3 - PODEŠAVANJA VENTILATORA (BUS) I ODMRZIVAČA ===
+// ===================================================================================
+WIDGET( ID_VentilatorRelay,             0x850, "SPINBOX za RS485 adresu releja ventilatora" )
+WIDGET( ID_VentilatorDelayOn,           0x851, "SPINBOX za vrijeme odgode paljenja ventilatora (s)" )
+WIDGET( ID_VentilatorDelayOff,          0x852, "SPINBOX za vrijeme odgode gašenja ventilatora (s)" )
+WIDGET( ID_VentilatorTriggerSource1,    0x853, "SPINBOX za odabir prvog svjetla kao okidača" )
+WIDGET( ID_VentilatorTriggerSource2,    0x854, "SPINBOX za odabir drugog svjetla kao okidača" )
+WIDGET( ID_VentilatorLocalPin,          0x855, "SPINBOX za odabir lokalnog GPIO pina za ventilator" )
+WIDGET( ID_DEFROSTER_CYCLE_TIME,        0x856, "SPINBOX za vrijeme ciklusa odmrzivača (min)" )
+WIDGET( ID_DEFROSTER_ACTIVE_TIME,       0x857, "SPINBOX za aktivno vrijeme odmrzivača unutar ciklusa (s)" )
+WIDGET( ID_DEFROSTER_PIN,               0x858, "SPINBOX za odabir lokalnog GPIO pina za odmrzivač" )
+
+// ===================================================================================
+// === 0x860 - 0x86F: EKRAN 4 - PODEŠAVANJA ROLETNI ===
+// ===================================================================================
+WIDGET( ID_CurtainsMoveTime,            0x860, "SPINBOX za globalno vrijeme kretanja roletni (s)" )
+// Dinamički ID-jevi za releje roletni (ID_CurtainsRelay) počinju od 0x894
+
+// ===================================================================================
+// === 0x870 - 0x88F: EKRAN 6 - OPŠTE POSTAVKE SISTEMA ===
+// ===================================================================================
+WIDGET( ID_DEV_ID,                      0x870, "SPINBOX za adresu uređaja na RS485 busu (TFIFA)" )
+WIDGET( ID_LanguageSelect,              0x871, "DROPDOWN za odabir jezika korisničkog interfejsa" )
+WIDGET( ID_LEAVE_SCRNSVR_AFTER_TOUCH,   0x872, "CHECKBOX za promjenu ponašanja screensavera pri dodiru" )
+WIDGET( ID_LIGHT_NIGHT_TIMER,           0x873, "CHECKBOX za omogućavanje noćnog tajmera za svjetla" )
+WIDGET( ID_ENABLE_SCENES,               0x874, "CHECKBOX za globalno omogućavanje/onemogućavanje sistema scena" )
+WIDGET( ID_SELECT_CONTROL_1,            0x875, "DROPDOWN za odabir funkcije dinamičke ikonice 1 (na SelectScreen1)" )
+WIDGET( ID_SELECT_CONTROL_2,            0x876, "DROPDOWN za odabir funkcije dinamičke ikonice 2 (na SelectScreen2)" )
+WIDGET( ID_ENABLE_SECURITY_MODULE,      0x877, "CHECKBOX za globalno omogućavanje/onemogućavanje security modula" )
+
+// ===================================================================================
+// === 0x900 - 0x94F: EKRAN 8 - PODEŠAVANJA KAPIJA ===
+// ===================================================================================
+WIDGET( ID_GATE_SELECT,                 0x900, "SPINBOX za odabir kapije/uređaja za konfiguraciju (1-6)" )
+WIDGET( ID_GATE_TYPE,                   0x901, "DROPDOWN za odabir 'Profila Kontrole' (npr. 'Krilna kapija')" )
+WIDGET( ID_GATE_APPEARANCE,             0x902, "SPINBOX za odabir vizuelnog izgleda (ikonice i naziva)" )
+WIDGET( ID_GATE_RENAME_BUTTON,          0x903, "Nevidljivo dugme preko naziva za pokretanje preimenovanja" )
+WIDGET( ID_GATE_EDIT_RELAY_CMD1,        0x910, "SPINBOX/Dugme za adresu releja - Komanda 1" )
+WIDGET( ID_GATE_EDIT_RELAY_CMD2,        0x911, "SPINBOX/Dugme za adresu releja - Komanda 2" )
+WIDGET( ID_GATE_EDIT_RELAY_CMD3,        0x912, "SPINBOX/Dugme za adresu releja - Komanda 3" )
+WIDGET( ID_GATE_EDIT_RELAY_CMD4,        0x913, "SPINBOX/Dugme za adresu releja - Komanda 4" )
+WIDGET( ID_GATE_EDIT_FEEDBACK_1,        0x920, "SPINBOX/Dugme za adresu senzora - Povratna info 1" )
+WIDGET( ID_GATE_EDIT_FEEDBACK_2,        0x921, "SPINBOX/Dugme za adresu senzora - Povratna info 2" )
+WIDGET( ID_GATE_EDIT_FEEDBACK_3,        0x922, "SPINBOX/Dugme za adresu senzora - Povratna info 3" )
+WIDGET( ID_GATE_EDIT_CYCLE_TIMER,       0x930, "SPINBOX/Dugme za vrijeme trajanja ciklusa (s)" )
+WIDGET( ID_GATE_EDIT_PED_TIMER,         0x931, "SPINBOX/Dugme za vrijeme trajanja pješačkog moda (s)" )
+WIDGET( ID_GATE_EDIT_PULSE_TIMER,       0x932, "SPINBOX/Dugme za trajanje impulsa (ms)" )
+
+// ===================================================================================
+// === 0x950 - 0x97F: EKRAN 7 - PODEŠAVANJA SCENA (BACKEND I WIZARD) ===
+// ===================================================================================
+// --- Backend (SCREEN_SETTINGS_7) ---
+WIDGET( ID_SCENE_TRIGGER_1,             0x950, "SPINBOX za adresu okidača 1 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_2,             0x951, "SPINBOX za adresu okidača 2 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_3,             0x952, "SPINBOX za adresu okidača 3 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_4,             0x953, "SPINBOX za adresu okidača 4 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_5,             0x954, "SPINBOX za adresu okidača 5 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_6,             0x955, "SPINBOX za adresu okidača 6 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_7,             0x956, "SPINBOX za adresu okidača 7 za 'Povratak' scenu" )
+WIDGET( ID_SCENE_TRIGGER_8,             0x957, "SPINBOX za adresu okidača 8 za 'Povratak' scenu" )
+// --- Čarobnjak (Wizard) ---
+WIDGET( ID_BUTTON_CHANGE_APPEARANCE,    0x960, "Dugme '[ Promijeni ]' u editoru scene" )
+WIDGET( ID_BUTTON_DETAILED_SETUP,       0x961, "Dugme '[ Detaljna Podešavanja ]' u editoru scene" )
+WIDGET( ID_BUTTON_DELETE_SCENE,         0x962, "Dugme '[ Obriši ]' u editoru scene" )
+WIDGET( ID_WIZ_CHECKBOX_LIGHTS,         0x963, "CHECKBOX 'Svjetla' u čarobnjaku" )
+WIDGET( ID_WIZ_CHECKBOX_CURTAINS,       0x964, "CHECKBOX 'Roletne' u čarobnjaku" )
+WIDGET( ID_WIZ_CHECKBOX_THERMOSTAT,     0x965, "CHECKBOX 'Termostat' u čarobnjaku" )
+WIDGET( ID_WIZ_NEXT,                    0x966, "Dugme '[ Dalje ]' unutar čarobnjaka" )
+WIDGET( ID_WIZ_BACK,                    0x967, "Dugme '[ Nazad ]' unutar čarobnjaka" )
+WIDGET( ID_WIZ_CANCEL,                  0x968, "Dugme '[ Otkaži ]' unutar čarobnjaka" )
+
+// ===================================================================================
+// === 0x980 - 0x99F: EKRAN - PODEŠAVANJE DATUMA I VREMENA (RTC) ===
+// ===================================================================================
+WIDGET( ID_DATETIME_DAY_UP,             0x980, "Dugme '+' za Dan" )
+WIDGET( ID_DATETIME_DAY_DOWN,           0x981, "Dugme '-' za Dan" )
+WIDGET( ID_DATETIME_MONTH_UP,           0x982, "Dugme '+' za Mjesec" )
+WIDGET( ID_DATETIME_MONTH_DOWN,         0x983, "Dugme '-' za Mjesec" )
+WIDGET( ID_DATETIME_YEAR_UP,            0x984, "Dugme '+' za Godinu" )
+WIDGET( ID_DATETIME_YEAR_DOWN,          0x985, "Dugme '-' za Godinu" )
+WIDGET( ID_DATETIME_HOUR_UP,            0x986, "Dugme '+' za Sat" )
+WIDGET( ID_DATETIME_HOUR_DOWN,          0x987, "Dugme '-' za Sat" )
+WIDGET( ID_DATETIME_MINUTE_UP,          0x988, "Dugme '+' za Minutu" )
+WIDGET( ID_DATETIME_MINUTE_DOWN,        0x989, "Dugme '-' za Minutu" )
+WIDGET( ID_DATETIME_SAVE,               0x98A, "Dugme 'SNIMI' za ekran podešavanja vremena" )
+WIDGET( ID_DATETIME_CANCEL,             0x98B, "Dugme 'OTKAŽI' za ekran podešavanja vremena" )
+
+// ===================================================================================
+// === 0x9A0 - 0x9BF: EKRAN - PODEŠAVANJE TAJMERA (ALARMA) ===
+// ===================================================================================
+WIDGET( ID_TIMER_HOUR_UP,               0x9A0, "Dugme '+' za sat tajmera" )
+WIDGET( ID_TIMER_HOUR_DOWN,             0x9A1, "Dugme '-' za sat tajmera" )
+WIDGET( ID_TIMER_MINUTE_UP,             0x9A2, "Dugme '+' za minutu tajmera" )
+WIDGET( ID_TIMER_MINUTE_DOWN,           0x9A3, "Dugme '-' za minutu tajmera" )
+WIDGET( ID_TIMER_DAY_MON,               0x9A4, "Toggle dugme za ponedjeljak" )
+WIDGET( ID_TIMER_DAY_TUE,               0x9A5, "Toggle dugme za utorak" )
+WIDGET( ID_TIMER_DAY_WED,               0x9A6, "Toggle dugme za srijedu" )
+WIDGET( ID_TIMER_DAY_THU,               0x9A7, "Toggle dugme za četvrtak" )
+WIDGET( ID_TIMER_DAY_FRI,               0x9A8, "Toggle dugme za petak" )
+WIDGET( ID_TIMER_DAY_SAT,               0x9A9, "Toggle dugme za subotu" )
+WIDGET( ID_TIMER_DAY_SUN,               0x9AA, "Toggle dugme za nedjelju" )
+WIDGET( ID_TIMER_BUZZER_TOGGLE,         0x9AB, "Toggle dugme za aktivaciju zujalice kao akcije" )
+WIDGET( ID_TIMER_SCENE_TOGGLE,          0x9AC, "Toggle dugme za aktivaciju scene kao akcije" )
+WIDGET( ID_TIMER_SCENE_SELECT,          0x9AD, "Dugme za ulazak u ekran za odabir scene" )
+WIDGET( ID_TIMER_SAVE,                  0x9AE, "Dugme 'SNIMI' za ekran podešavanja tajmera" )
+WIDGET( ID_TIMER_CANCEL,                0x9AF, "Dugme 'OTKAŽI' za ekran podešavanja tajmera" )
+WIDGET( ID_SETTINGS_TIMER_BUTTON,       0x9B0, "Dugme na glavnom ekranu tajmera za ulazak u podešavanja" )
+
+// ===================================================================================
+// === 0x9C0 - 0x9DF: EKRAN 9 - PODEŠAVANJA ALARMA ===
+// ===================================================================================
+WIDGET( ID_ALARM_RELAY_P1,              0x9C0, "SPINBOX za adresu releja - Particija 1" )
+WIDGET( ID_ALARM_RELAY_P2,              0x9C1, "SPINBOX za adresu releja - Particija 2" )
+WIDGET( ID_ALARM_RELAY_P3,              0x9C2, "SPINBOX za adresu releja - Particija 3" )
+WIDGET( ID_ALARM_FB_P1,                 0x9C3, "SPINBOX za adresu feedback ulaza - Particija 1" )
+WIDGET( ID_ALARM_FB_P2,                 0x9C4, "SPINBOX za adresu feedback ulaza - Particija 2" )
+WIDGET( ID_ALARM_FB_P3,                 0x9C5, "SPINBOX za adresu feedback ulaza - Particija 3" )
+WIDGET( ID_ALARM_PULSE_LENGTH,          0x9C6, "SPINBOX za zajedničku dužinu pulsa (0=Latched, >0 Momentary u ms)" )
+WIDGET( ID_ALARM_FB_SYSTEM_STATUS,      0x9D0, "SPINBOX za adresu feedback ulaza - Status Alarma sistema" )
+WIDGET( ID_ALARM_RELAY_SILENT,          0x9D1, "SPINBOX za adresu releja - Tihi alarm (SOS)" )
+
+
+// NAPOMENA: Dinamički ID-jevi (ID_LightsModbusRelay, ID_CurtainsRelay) se ne stavljaju ovdje.

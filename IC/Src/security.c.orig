@@ -1,0 +1,520 @@
+/**
+ ******************************************************************************
+ * @file    security.c
+ * @author  Gemini & [Vaše Ime]
+ * @brief   Implementacija logike za alarmni sistem i upravljanje korisnicima.
+ *
+ * @note    Ovaj modul je "mozak" alarmnog sistema. On upravlja postavkama,
+ * šalje komande za aktivaciju/deaktivaciju i obrađuje povratne
+ * informacije o stanju sistema. Komunikacija sa hardverskim
+ * modulima (relejima, digitalnim ulazima) se vrši isključivo
+ * preko `rs485` modula, dodavanjem komandi u odgovarajuće redove.
+ ******************************************************************************
+ */
+
+#if (__SECURITY_H__ != FW_BUILD)
+#error "security header version mismatch"
+#endif
+
+/*============================================================================*/
+/* UKLJUČENI FAJLOVI (INCLUDES)                                               */
+/*============================================================================*/
+#include "security.h"
+#include "stm32746g_eeprom.h"
+#include "rs485.h"
+
+/*============================================================================*/
+/* PRIVATNE (STATIČKE) VARIJABLE                                              */
+/*============================================================================*/
+
+/**
+ * @brief Globalna, ali privatna instanca strukture sa postavkama alarma.
+ * @note  Inicijalizuje se iz EEPROM-a prilikom pokretanja sistema.
+ */
+static Security_Settings_t g_security_settings;
+
+
+/**
+ * @brief Niz koji u RAM-u čuva posljednje poznato stanje svake particije.
+ * @note  Vrijednost (`true`=naoružana, `false`=razoružana) se ažurira na
+ * osnovu `DIN_EVENT` poruka sa RS485 bus-a.
+ */
+static bool partition_is_armed[SECURITY_PARTITION_COUNT];
+
+/**
+ * @brief Fleg koji u RAM-u čuva posljednje poznato stanje alarma sistema.
+ * @note  Vrijednost (`true`=u alarmu, `false`=nije u alarmu) se ažurira na
+ * osnovu `DIN_EVENT` poruke.
+ */
+static bool system_is_in_alarm = false;
+
+/**
+ * @brief Definiše fabričke (default) PIN kodove za tri korisnika.
+ */
+static const char* DEFAULT_PINS[SECURITY_USER_COUNT] = { "7891", "7892", "7893" };
+
+/*============================================================================*/
+/* PROTOTIPOVI PRIVATNIH POMOĆNIH FUNKCIJA                                    */
+/*============================================================================*/
+static void Execute_Command(uint8_t partition_index);
+static void HandleSensorEvent(uint16_t sensor_addr, uint8_t state);
+static void Security_Users_SetDefault(void);
+
+/*============================================================================*/
+/* IMPLEMENTACIJA - ALARM SETTINGS                                            */
+/*============================================================================*/
+
+/**
+ ******************************************************************************
+ * @brief       Inicijalizuje konfiguraciju alarmnog modula pri pokretanju.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Funkcija učitava konfiguraciju iz EEPROM-a sa adrese `EE_SECURITY`,
+ * provjerava njen integritet i postavlja fabričke vrijednosti ako je
+ * to potrebno.
+ ******************************************************************************
+ */
+void Security_Init(void)
+{
+    EE_ReadBuffer((uint8_t*)&g_security_settings, EE_SECURITY, sizeof(Security_Settings_t));
+
+    if (g_security_settings.magic_number != EEPROM_MAGIC_NUMBER) {
+        Security_SetDefault();
+        Security_Save();
+    } else {
+        uint16_t crc = g_security_settings.crc;
+        g_security_settings.crc = 0;
+        uint16_t calculated_crc = HAL_CRC_Calculate(&hcrc, (uint32_t*)&g_security_settings, sizeof(Security_Settings_t));
+        if (crc != calculated_crc) {
+            Security_SetDefault();
+            Security_Save();
+        }
+    }
+    Security_RefreshState();
+}
+
+/**
+ ******************************************************************************
+ * @brief       Snima trenutnu konfiguraciju alarmnog modula u EEPROM.
+ * @author      Gemini & [Vaše Ime]
+ ******************************************************************************
+ */
+void Security_Save(void)
+{
+    g_security_settings.magic_number = EEPROM_MAGIC_NUMBER;
+    g_security_settings.crc = 0;
+    g_security_settings.crc = HAL_CRC_Calculate(&hcrc, (uint32_t*)&g_security_settings, sizeof(Security_Settings_t));
+    EE_WriteBuffer((uint8_t*)&g_security_settings, EE_SECURITY, sizeof(Security_Settings_t));
+}
+
+/**
+ ******************************************************************************
+ * @brief       Postavlja konfiguraciju alarma na fabričke (default) vrijednosti.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Ova funkcija se poziva kada podaci u EEPROM-u nisu validni.
+ * Inicijalizuje sve parametre na sigurne početne vrijednosti,
+ * uključujući podrazumijevani PIN i prazne stringove za nazive.
+ ******************************************************************************
+ */
+void Security_SetDefault(void)
+{
+    // Brisanje cijele strukture na nulu radi sigurnosti
+    memset(&g_security_settings, 0, sizeof(Security_Settings_t));
+
+    // Postavljanje specifičnih default vrijednosti
+    g_security_settings.pulse_duration_ms = 500;
+
+    // Postavljanje podrazumijevanog PIN-a
+    strncpy(g_security_settings.pin, DEF_ALARM_PIN, SECURITY_PIN_LENGTH - 1);
+    g_security_settings.pin[SECURITY_PIN_LENGTH - 1] = '\0'; // Osiguraj NUL-terminator
+
+    // Inicijalizacija naziva na prazne stringove.
+    // UI će na osnovu ovoga prikazati default tekst (npr. "Sistem", "Particija 1").
+    g_security_settings.system_name[0] = '\0';
+    for (int i = 0; i < SECURITY_PARTITION_COUNT; i++) {
+        g_security_settings.partition_names[i][0] = '\0';
+    }
+}
+
+// --- Geteri i Seteri za konfiguraciju alarma ---
+/**
+ ******************************************************************************
+ * @brief       Dohvata Modbus adresu releja za specificiranu particiju.
+ * @author      Gemini & [Vaše Ime]
+ * @param[in]   p Indeks particije (0-2).
+ * @retval      uint16_t Vraća trenutnu adresu releja, ili 0 ako je indeks nevažeći.
+ ******************************************************************************
+ */
+uint16_t Security_GetPartitionRelayAddr(uint8_t p)
+{
+    return (p < SECURITY_PARTITION_COUNT) ? g_security_settings.partition_relay_addr[p] : 0;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Postavlja Modbus adresu releja za specificiranu particiju.
+ * @author      Gemini & [Vaše Ime]
+ * @param[in]   p Indeks particije (0-2).
+ * @param[in]   addr Nova Modbus adresa releja.
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_SetPartitionRelayAddr(uint8_t p, uint16_t addr)
+{
+    if (p < SECURITY_PARTITION_COUNT) g_security_settings.partition_relay_addr[p] = addr;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Dohvata Modbus adresu digitalnog ulaza (feedback) za specificiranu particiju.
+ * @author      Gemini & [Vaše Ime]
+ * @param[in]   p Indeks particije (0-2).
+ * @retval      uint16_t Vraća trenutnu adresu digitalnog ulaza, ili 0 ako je indeks nevažeći.
+ ******************************************************************************
+ */
+uint16_t Security_GetPartitionFeedbackAddr(uint8_t p)
+{
+    return (p < SECURITY_PARTITION_COUNT) ? g_security_settings.partition_feedback_addr[p] : 0;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Postavlja Modbus adresu digitalnog ulaza (feedback) za specificiranu particiju.
+ * @author      Gemini & [Vaše Ime]
+ * @param[in]   p Indeks particije (0-2).
+ * @param[in]   addr Nova Modbus adresa digitalnog ulaza.
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_SetPartitionFeedbackAddr(uint8_t p, uint16_t addr)
+{
+    if (p < SECURITY_PARTITION_COUNT) g_security_settings.partition_feedback_addr[p] = addr;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Dohvata Modbus adresu ulaza za povratnu informaciju o statusu alarma cijelog sistema.
+ * @author      Gemini & [Vaše Ime]
+ * @retval      uint16_t Vraća trenutnu adresu ulaza.
+ ******************************************************************************
+ */
+uint16_t Security_GetSystemStatusFeedbackAddr(void)
+{
+    return g_security_settings.system_status_feedback_addr;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Postavlja Modbus adresu ulaza za povratnu informaciju o statusu alarma cijelog sistema.
+ * @author      Gemini & [Vaše Ime]
+ * @param[in]   addr Nova Modbus adresa ulaza.
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_SetSystemStatusFeedbackAddr(uint16_t addr)
+{
+    g_security_settings.system_status_feedback_addr = addr;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Dohvata Modbus adresu releja za tihi alarm (SOS).
+ * @author      Gemini & [Vaše Ime]
+ * @retval      uint16_t Vraća trenutnu adresu releja.
+ ******************************************************************************
+ */
+uint16_t Security_GetSilentAlarmAddr(void)
+{
+    return g_security_settings.silent_alarm_addr;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Postavlja Modbus adresu releja za tihi alarm (SOS).
+ * @author      Gemini & [Vaše Ime]
+ * @param[in]   addr Nova Modbus adresa releja.
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_SetSilentAlarmAddr(uint16_t addr)
+{
+    g_security_settings.silent_alarm_addr = addr;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Dohvata trajanje impulsa za komande releja.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Vrijednost 0 označava trajni (latched) mod rada, dok vrijednost > 0
+ * predstavlja trajanje u milisekundama (ms).
+ * @retval      uint16_t Vraća trenutno trajanje impulsa u ms.
+ ******************************************************************************
+ */
+uint16_t Security_GetPulseDuration(void)
+{
+    return g_security_settings.pulse_duration_ms;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Postavlja trajanje impulsa za komande releja.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Postavite na 0 za trajni (latched) mod, ili > 0 za pulsni mod.
+ * @param[in]   duration Novo trajanje impulsa u milisekundama (ms).
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_SetPulseDuration(uint16_t duration)
+{
+    g_security_settings.pulse_duration_ms = duration;
+}
+
+/*============================================================================*/
+/* IMPLEMENTACIJA - KONTROLNE I POMOĆNE FUNKCIJE                              */
+/*============================================================================*/
+
+/**
+ ******************************************************************************
+ * @brief       Šalje komandu za promjenu stanja za jednu specificnu particiju.
+ * @author      Gemini & [Vaše Ime]
+ * @param       i Indeks particije (0, 1 ili 2).
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_TogglePartition(uint8_t i) 
+    {
+    if (i < SECURITY_PARTITION_COUNT) Execute_Command(i);
+}
+
+/**
+ ******************************************************************************
+ * @brief       Šalje komandu za promjenu stanja za kompletan sistem.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Funkcija prvo provjerava da li je ijedna particija naoružana.
+ * - Ako jeste, šalje komandu za razoružavanje svim konfigurisanim particijama.
+ * - Ako nije, šalje komandu za naoružavanje svim konfigurisanim particijama.
+ * @param       None
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_ToggleSystem(void) 
+    {
+    bool arm_command = !Security_IsAnyPartitionArmed();
+    for (int i = 0; i < SECURITY_PARTITION_COUNT; i++) {
+        if (g_security_settings.partition_relay_addr[i] != 0 && partition_is_armed[i] != arm_command) Execute_Command(i);
+    }
+}
+
+/**
+ ******************************************************************************
+ * @brief       Šalje komandu za aktivaciju tihog alarma (SOS).
+ * @author      Gemini & [Vaše Ime]
+ * @note        Šalje pulsni `BINARY_ON` signal na adresu definisanu u postavkama.
+ * Pretpostavka je da je trajanje pulsa (5 sekundi) konfigurisano
+ * na samom eksternom (PGM) modulu.
+ * @param       None
+ * @retval      None
+ ******************************************************************************
+ */
+void Security_TriggerSilentAlarm(void) 
+    {
+    uint16_t address = g_security_settings.silent_alarm_addr;
+    if (address == 0) return;
+    uint8_t data_buff[3] = { (address >> 8) & 0xFF, address & 0xFF, BINARY_ON };
+    AddCommand(&binaryQueue, BINARY_SET, data_buff, 3);
+}
+
+/**
+ ******************************************************************************
+ * @brief       Dohvata posljednje poznato stanje (naoružana/razoružana) particije.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Funkcija trenutno vraća stanje iz interne `runtime` varijable.
+ * @param       i Indeks particije (0, 1 ili 2).
+ * @retval      bool `true` ako je particija naoružana, inače `false`.
+ ******************************************************************************
+ */
+bool Security_GetPartitionState(uint8_t i) 
+    {
+    return (i < SECURITY_PARTITION_COUNT) ? partition_is_armed[i] : false;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Dohvata posljednje poznato stanje alarma sistema.
+ * @author      Gemini & [Vaše Ime]
+ * @retval      bool `true` ako je sistem u alarmu, inače `false`.
+ ******************************************************************************
+ */
+bool Security_GetSystemAlarmState(void) 
+    {
+    return system_is_in_alarm;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Procesira događaj primljen sa RS485 bus-a.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Ovu funkciju poziva isključivo `DIN_EVENT_Listener` iz `rs485.c`.
+ * Brzo provjerava da li je adresa iz događaja relevantna za ovaj
+ * modul i ako jeste, prosljeđuje ga na internu obradu.
+ * @param       address Adresa izvora događaja.
+ * @param       command Tip komande (očekuje se `DIN_EVENT`).
+ * @param       data    Pokazivač na podatke iz poruke.
+ * @param       len     Dužina podataka.
+ ******************************************************************************
+ */
+void SECURITY_BusEvent(uint16_t address, uint8_t command, uint8_t* data, uint8_t len) {
+    if (command != DIN_EVENT || address == 0) return;
+    bool is_relevant = false;
+    if (address == g_security_settings.system_status_feedback_addr) is_relevant = true;
+    else {
+        for (uint8_t i = 0; i < SECURITY_PARTITION_COUNT; i++) if (address == g_security_settings.partition_feedback_addr[i]) {
+                is_relevant = true;
+                break;
+            }
+    }
+    if (is_relevant) HandleSensorEvent(address, (len > 0) ? data[0] : 0);
+}
+
+/**
+ ******************************************************************************
+ * @brief       Eksplicitno osvježava sva interna stanja čitanjem sa bus-a.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Koristi blokirajuću `GetState` funkciju sa `DIN_GET` komandom da
+ * dohvati najsvježije podatke sa hardvera. Poziva je `display.c`
+ * prije iscrtavanja kontrolnog ekrana.
+ ******************************************************************************
+ */
+void Security_RefreshState(void) 
+    {
+    uint8_t response_data;
+    for(int i = 0; i < SECURITY_PARTITION_COUNT; ++i) if (g_security_settings.partition_feedback_addr[i] != 0 && GetState(DIN_GET, g_security_settings.partition_feedback_addr[i], &response_data)) partition_is_armed[i] = (response_data == 1);
+    if (g_security_settings.system_status_feedback_addr != 0 && GetState(DIN_GET, g_security_settings.system_status_feedback_addr, &response_data)) system_is_in_alarm = (response_data == 1);
+}
+
+/**
+ ******************************************************************************
+ * @brief       Vraća ukupan broj particija koje su konfigurisane.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Koristi je `display.c` da dinamički prilagodi interfejs.
+ * @retval      uint8_t Broj konfigurisanih particija (0 do 3).
+ ******************************************************************************
+ */
+uint8_t Security_GetConfiguredPartitionsCount(void) 
+    {
+    uint8_t count = 0;
+    for (int i = 0; i < SECURITY_PARTITION_COUNT; i++) if (g_security_settings.partition_relay_addr[i] != 0) count++;
+    return count;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Provjerava da li je ijedna od konfigurisanih particija naoružana.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Koristi je `display.c` za određivanje teksta na 'SYSTEM' dugmetu.
+ * @retval      bool `true` ako je bar jedna particija naoružana, inače `false`.
+ ******************************************************************************
+ */
+bool Security_IsAnyPartitionArmed(void) 
+    {
+    for (int i = 0; i < SECURITY_PARTITION_COUNT; i++) if (g_security_settings.partition_relay_addr[i] != 0 && partition_is_armed[i]) return true;
+    return false;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Validira uneseni korisnički kod.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Funkcija vrši trostruku provjeru:
+ * 1. Da li je uneseni kod duži od 2 karaktera.
+ * 2. Da li se kod sastoji isključivo od cifara '0'.
+ * 3. Da li se kod podudara sa PIN-om snimljenim u konfiguraciji.
+ * Tek ako su prve dvije provjere zadovoljene, prelazi se na treću.
+ * @param[in]   code Pokazivač na string koji sadrži uneseni kod.
+ * @retval      bool Vraća `true` ako je kod ispravan, inače `false`.
+ ******************************************************************************
+ */
+bool Security_ValidateUserCode(const char* code)
+{
+    // 1. Provjera minimalne dužine koda.
+    if (strlen(code) < 3)
+    {
+        return false; // Kod je prekratak i samim tim nevažeći.
+    }
+
+    // 2. Provjera da li se kod sastoji isključivo od nula.
+    bool all_zeros = true;
+    for (int i = 0; i < strlen(code); i++)
+    {
+        if (code[i] != '0')
+        {
+            all_zeros = false; // Pronađena je cifra koja nije nula, provjera je prošla.
+            break;
+        }
+    }
+    if (all_zeros)
+    {
+        return false; // Kod se sastoji samo od nula i nevažeći je.
+    }
+
+    // 3. Ako su prve dvije provjere prošle, poredimo kod sa snimljenim PIN-om.
+    if (strcmp(code, g_security_settings.pin) == 0)
+    {
+        return true; // Kod se podudara, validacija je uspješna.
+    }
+
+    return false; // Kod se ne podudara sa snimljenim PIN-om.
+}
+
+/*============================================================================*/
+/* IMPLEMENTACIJA PRIVATNIH FUNKCIJA                                          */
+/*============================================================================*/
+
+/**
+ ******************************************************************************
+ * @brief       Interna funkcija koja obrađuje promjenu stanja senzora.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Ažurira `runtime` stanje (`partition_is_armed`, `system_is_in_alarm`)
+ * i postavlja fleg za osvježavanje ekrana ako je potrebno.
+ * @param       sensor_addr Adresa digitalnog ulaza koji je javio promjenu.
+ * @param       state       Novo stanje ulaza (1 za ON, 0 za OFF).
+ ******************************************************************************
+ */
+static void HandleSensorEvent(uint16_t sensor_addr, uint8_t state) 
+    {
+    bool state_changed = false;
+    for(int i = 0; i < SECURITY_PARTITION_COUNT; ++i) if (g_security_settings.partition_feedback_addr[i] == sensor_addr) {
+            if (partition_is_armed[i] != (bool)state) {
+                partition_is_armed[i] = (bool)state;
+                state_changed = true;
+            }
+            break;
+        }
+    if (g_security_settings.system_status_feedback_addr == sensor_addr) if (system_is_in_alarm != (bool)state) {
+            system_is_in_alarm = (bool)state;
+            state_changed = true;
+        }
+    if (state_changed && (screen == SCREEN_SECURITY)) shouldDrawScreen = 1;
+}
+
+/**
+ ******************************************************************************
+ * @brief       Interna funkcija koja formira i šalje komandu na RS485 bus.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Na osnovu postavke `pulse_duration_ms` i trenutnog stanja
+ * particije, odlučuje da li će poslati `BINARY_ON` ili
+ * `BINARY_OFF` komandu i dodaje je u `binaryQueue`.
+ * @param       partition_index Indeks particije (0-2) za koju se šalje komanda.
+ ******************************************************************************
+ */
+static void Execute_Command(uint8_t partition_index) 
+    {
+    uint16_t address = g_security_settings.partition_relay_addr[partition_index];
+    if (address == 0) return;
+    uint8_t data_buff[3] = { (address >> 8) & 0xFF, address & 0xFF, 0 };
+    if (g_security_settings.pulse_duration_ms > 0) {
+        data_buff[2] = BINARY_ON;
+    } else {
+        data_buff[2] = partition_is_armed[partition_index] ? BINARY_OFF : BINARY_ON;
+    }
+    AddCommand(&binaryQueue, BINARY_SET, data_buff, 3);
+}

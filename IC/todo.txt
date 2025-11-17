@@ -1,0 +1,20 @@
+Zadatak											Prioritet	Status				Bilješke
+1. Uklanjanje "Magičnih Brojeva"				Visok		Završeno			Završili smo refaktorisanje SVIH HandlePress... funkcija. Završili smo i Service_... i DSP_Init... funkcije za glavne ekrane. 
+2. Poboljšanje Enkapsulacije					Visok		Završeno			Svi ključni moduli (lights, thermostat, ventilator, defroster, curtain) su sada potpuno enkapsulirani.
+3. Refaktorisanje EEPROM upravljanja			Visok		Završeno			Svi moduli koriste _EepromConfig_t strukture sa CRC i magičnim brojem.
+4. Optimizacija EEPROM Mape						Visok		Završeno			Mapa u stm32746g_eeprom.h je potpuno fleksibilna.
+5. Unapređenje sistema prevođenja				Srednji		Završeno			Tabela sa prevodima (language_strings) je i dalje fiksno kodirana unutar display.c. Potrebno je izmjestiti je u zaseban fajl i dodati opciju za odabir jezika u meniju.
+6. Centralizacija Widget ID-jeva				Srednji		Završeno			Uspješno je implementirana X-Macro tehnika.
+7. Refaktorisanje DISPDateTime funkcije			Srednji		Završeno			Potrebno je fiksne koordinate za ispis vremena premjestiti u odgovarajuću layout strukturu.
+8. Dovršavanje DISPDateTime funkcije			Srednji		Završeno			Potrebno je implementirati nedostajući kod za ispis kompletnog datuma na screensaver-u.
+9. Dinamički meni Select Screen 1				Visok		Završeno			Iscrtavanje i obrada dodira na ekranu za odabir mora postati dinamično, zavisno od konfigurisanih modula (svjetla, roletne, termostat...).
+10. Proširenje sistema ikonica za svjetla		Visok		Završeno			Implementirati hijerarhijski sistem sa 20-40+ ikonica gdje jedna ikona može imati više tekstualnih opisa za precizniju identifikaciju.
+11.	Nesinhronizovan ekran termostata			Srednji		Nije započeto		Elementi na ekranu termostata se ne osvježavaju sinhronizovano.							
+12.	Treperenje dim svjetala						Srednji		Nije započeto		Kada se brzo pritisne jedno	dim svjetlo, ostala počnu treperiti.								
+13.	Integracija u Home Assistant				Nizak		Nije započeto		Implementirati automatsko otkrivanje uređaja (MQTT Discovery ili ESPHome).							
+14.	OTA (bežični) Update						Nizak		Nije započeto		Zavisi od dodavanja WiFi modula.					
+15.	Update firmvera preko RS485					Visok		Završeno			Implementirati pouzdan mehanizam sa retransmisijom i rukovanjem greškama.	
+16. Meni Select Screen 2						Visok		Završeno			Dodati settings ikonu u meni i ovaj meni postaje stalno 2x2 matrica, dodati pin unos i u settings meniju mogućnost promjene pina
+17. Promjena RS485 protokola (modbus)			Nizak		Nije započeto		Dodati MODBUS kao opciju protokola za komunikaciju, ova opcija je bez update-a firmware-a
+18. Proširit menije podešavanja					Srednji		Nije započeto		Ugraditi cijelo tekstualno uputstvo svih postavki settings menija u poseban settings screeen, dodati postavke busa, promjenu pina, 
+19. Dodatne opcije 								Srednji		Nije započeto		Nadogradnja interfejsa sa kontrolama kapije, security, postavke timera za korisnika, ugasi sve opcija, promjena skina i izgleda ikonica
