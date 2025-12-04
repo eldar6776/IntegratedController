@@ -1,0 +1,208 @@
+Project Plan v2.0: Smart Home Alarm Module Refactoring (with i18n)
+Autor: Gemini
+Datum: 6. oktobar 2025.
+
+
+Cilj projekta: Refaktorisati i dovršiti funkcionalnost Alarm modula u skladu sa usvojenim prijedlozima. 
+
+
+Glavni ciljevi:
+
+Uspostaviti konzistentan UI/UX za ulazak u podešavanja (dugi pritisak). 
+
+Pojednostaviti upravljanje alarmom uvođenjem "Garantovane Konfiguracije" sa jednim glavnim PIN-om i logičkim, korisnički definisanim nazivima particija. 
+
+Implementirati siguran, trostupanjski proces za promjenu glavnog PIN-a. 
+
+NOVO: Osigurati da je kompletan novi interfejs višejezičan (i18n) i da prikaz naziva particija koristi pametnu logiku (custom naziv ili default prevedeni naziv).
+
+Faza 1: Proširenje Backend-a (Moduli security i main)
+Zavisnosti: Ova faza je apsolutni preduslov za sve UI izmjene. Mora biti završena prva. 
+
+Zadatak 1.1: Modifikacija Security_Settings_t strukture.
+
+Fajl: security.h
+
+
+Akcija: Dodaću polja system_name[21] i partition_names[SECURITY_PARTITION_COUNT][21] unutar Security_Settings_t strukture, odmah nakon magic_number, kako je planirano. Dužina od 21 karaktera je potvrđena. 
+
+
+
+Zadatak 1.2: Ažuriranje security.c logike.
+
+Fajl: security.c
+
+Akcije:
+
+Ažurirati Security_SetDefault(): Inicijalizovaću nova polja sa podrazumijevanim, ali NEPREVEDENIM nazivima ("SYSTEM", "PARTITION 1", itd.). Prevođenje je posao frontend-a. 
+
+
+Kreirati nove getter/setter funkcije: Implementiraću Security_GetSystemName, Security_SetSystemName, Security_GetPartitionName, i Security_SetPartitionName kako je planirano. 
+
+Zadatak 1.3: Verifikacija i implementacija Glavnog PIN-a.
+
+Fajlovi: main.c, security.c
+
+Akcije:
+
+Potvrđujem da 
+
+RAM_Init() u main.c ispravno postavlja default PIN "6776". 
+
+Modifikovaću funkciju 
+
+Security_ValidateUserCode u security.c da vrši poređenje (strcmp) samo sa globalnom varijablom system_pin, umjesto iteracije kroz listu korisnika. Logika za više korisnika (
+
+
+Security_Users_t) se ignoriše, ali kod ostaje. 
+
+Faza 1.5: Priprema za Internacionalizaciju (i18n)
+Zavisnosti: Radi se prije Faze 2.
+
+Zadatak 1.5.1: Proširenje display.h fajla.
+
+Fajl: display.h
+
+Akcija: U TextID enum, dodaću nove identifikatore za sve tekstove potrebne za alarm i proces promjene PIN-a.
+
+C
+
+// Novi TextID-jevi za dodati
+TXT_PIN_ENTER_CURRENT,      // Naslov: "TRENUTNI PIN"
+TXT_PIN_ENTER_NEW,          // Naslov: "UNESITE NOVI PIN"
+TXT_PIN_CONFIRM_NEW,        // Naslov: "POTVRDITE NOVI PIN"
+TXT_PIN_WRONG,              // Poruka: "POGREŠAN PIN"
+TXT_PINS_DONT_MATCH,        // Poruka: "PIN-ovi se ne podudaraju"
+TXT_PIN_CHANGE_SUCCESS,     // Poruka: "PIN uspješno promijenjen"
+TXT_ALARM_CHANGE_PIN,       // Labela dugmeta: "Promijeni Glavni PIN"
+TXT_ALARM_SYSTEM_NAME,      // Labela dugmeta: "Naziv Sistema"
+TXT_ALARM_PARTITION_NAME    // Labela dugmeta (koristiće se kao prefiks, npr. "Naziv Particije 1")
+Zadatak 1.5.2: Proširenje translations.h fajla.
+
+Fajl: translations.h
+
+Akcija: Dodaću prevode za sve nove TextID-jeve u language_strings tabelu, počevši sa BSHC jezikom.
+
+C
+
+// Primjer dodavanja u translations.h
+/* TXT_PIN_ENTER_CURRENT */  { "TRENUTNI PIN", "CURRENT PIN", ... },
+/* TXT_PIN_ENTER_NEW */      { "UNESITE NOVI PIN", "ENTER NEW PIN", ... },
+...
+Faza 2: Implementacija UI za Podešavanje Alarma (Modul display)
+Zavisnosti: Faza 1 i 1.5 moraju biti završene.
+
+Zadatak 2.1: Kreiranje ekrana SCREEN_SETTINGS_ALARM (sa i18n).
+
+Fajlovi: display.h, display.c
+
+Akcije:
+
+Dodati 
+
+SCREEN_SETTINGS_ALARM u eScreen enum. 
+
+Kreirati 
+
+DSP_InitSettingsAlarmScreen(), DSP_KillSettingsAlarmScreen() i Service_SettingsAlarmScreen(). 
+
+U 
+
+Init funkciji, kreirati 5 dugmadi.  Za tekst na dugmadima, implementiraću 
+
+pametnu logiku prikaza:
+
+Dugme 1: BUTTON_SetText(hButton, lng(TXT_ALARM_CHANGE_PIN));
+
+Dugmad 2-5:
+
+C
+
+// Primjer za Particiju 1 (indeks 0)
+const char* custom_name = Security_GetPartitionName(0);
+char buffer[50];
+if (custom_name[0] == '\0') {
+    // Ako nema custom naziva, koristi default prevedeni
+    sprintf(buffer, "%s 1", lng(TXT_ALARM_PARTITION));
+} else {
+    // Ako postoji custom naziv, koristi njega
+    strncpy(buffer, custom_name, sizeof(buffer));
+}
+BUTTON_SetText(hButton, buffer);
+Zadatak 2.2: Implementacija trostupanjske promjene PIN-a (sa i18n).
+
+Fajl: display.c
+
+Akcije:
+
+Definisaću statički 
+
+enum za praćenje stanja (PIN_CHANGE_IDLE, itd.). 
+
+Na pritisak dugmeta "Promijeni Glavni PIN", pozvaću 
+
+Display_ShowNumpad() sa naslovom lng(TXT_PIN_ENTER_CURRENT). 
+
+Proširiću 
+
+Service_NumpadScreen() da upravlja cijelim trostupanjskim procesom, koristeći lng() za sve naslove ("UNESITE NOVI PIN", "POTVRDITE NOVI PIN") i poruke o grešci (lng(TXT_PIN_WRONG), lng(TXT_PINS_DONT_MATCH)). 
+
+Zadatak 2.3: Implementacija promjene naziva particija (sa i18n).
+
+Fajl: display.c
+
+Akcije:
+
+Na pritisak dugmeta za naziv particije, pozvaću 
+
+Display_ShowKeyboard(). 
+
+Kontekst za tastaturu ću popuniti sa dinamički kreiranim, prevedenim naslovom i trenutnim nazivom particije. 
+
+Nakon potvrde, 
+
+Service_KeyboardScreen će pozvati Security_SetPartitionName() i Security_Save(). 
+
+Faza 3: Refaktorisanje UI Navigacije (Moduli display, timer)
+Zavisnosti: Nema.
+
+Zadatak 3.1: Implementacija dugog pritiska za ALARM i TIMER.
+
+Fajl: display.c
+
+
+Akcija: U HandlePress_SelectScreen2 ću dodati start tajmera , a u 
+
+HandleTouchReleaseEvent provjeru trajanja za razlikovanje kratkog i dugog pritiska, što će voditi na odgovarajuće ekrane (SCREEN_SECURITY/SCREEN_TIMER vs SCREEN_SETTINGS_ALARM/SCREEN_SETTINGS_TIMER). 
+
+
+Zadatak 3.2: Uklanjanje "Settings" ikonice sa TIMER ekrana.
+
+Fajl: display.c
+
+
+Akcija: Izbrisaću kod za kreiranje i obradu hButtonTimerSettings unutar Service_TimerScreen i povezanih funkcija. 
+
+Zadatak 3.3: Ažuriranje SCREEN_SECURITY za prikaz novih naziva.
+
+Fajl: display.c
+
+
+Akcija: U Service_SecurityScreen, umjesto fiksnih stringova, koristiću istu pametnu logiku kao u Zadatku 2.1 za dinamički prikaz naziva na dugmadima, pozivajući getter funkcije iz security.c. 
+
+Moj Sljedeći Korak (početak nove sesije):
+Otvoriću fajlove security.h i security.c.
+
+Započeću sa 
+
+Zadatkom 1.1: Proširiću Security_Settings_t strukturu sa poljima za nazive. 
+
+Nastaviću sa 
+
+Zadatkom 1.2: Implementiraću SetDefault izmjene i kreirati nove getter/setter funkcije za nazive. 
+
+Zatim prelazim na Zadatak 1.5: Ažuriraću display.h i translations.h.
+
+Tek nakon toga, počinjem sa UI izmjenama u 
+
+display.c kako je opisano u Fazama 2 i 3. 

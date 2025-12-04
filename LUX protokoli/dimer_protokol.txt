@@ -1,0 +1,78 @@
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = DIMMER_SET
+----------------------------------------------------
+podesi novu vrijednost: -jedan dimer sa odgovorom
+----------------------------------------------------
+BYTE 0 kanal (izlaz) dimera gornji bajt
+BYTE 1 kanal (izlaz) dimera donji bajt
+BYTE 2 nova vrijednost dimera 0-100
+
+odgovor:
+BYTE 0 kanal (izlaz) dimera gornji bajt
+BYTE 1 kanal (izlaz) dimera donji bajt
+BYTE 2 nova vrijednost dimera 0-100
+BYTE 3 ACK
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = DIMMER_SETUP 
+----------------------------------------------------
+podesi parametre dimera
+----------------------------------------------------
+BYTE 0 	redni broj (izlaz) dimera gornji bajt
+BYTE 1 	redni broj (izlaz) dimera donji bajt
+BYTE 2 	rampa dimera 0-50 (0 - 50 ms)
+BYTE 3 	limit temperature dimera 0-150 (0 - 150 °C)
+BYTE 4 	max. vrijednost skale gornji bajt (za vrijednost dimera 99)
+BYTE 5 	max. vrijednost skale donji bajt  (za vrijednost dimera 99)
+BYTE 6 	min. vrijednost skale gornji bajt (za vrijednost dimera 1)
+BYTE 7  min. vrijednost skale donji bajt  (za vrijednost dimera 1)
+
+odgovor:
+BYTE 0 	redni broj (izlaz) dimera gornji bajt
+BYTE 1 	redni broj (izlaz) dimera donji bajt
+BYTE 2 	rampa dimera 0-50 (0 - 50 ms)
+BYTE 3 	limit temperature dimera 0-150 (0 - 150 °C)
+BYTE 4 	max. vrijednost skale gornji bajt (za vrijednost dimera 99)
+BYTE 5 	max. vrijednost skale donji bajt  (za vrijednost dimera 99)
+BYTE 6 	min. vrijednost skale gornji bajt (za vrijednost dimera 1)
+BYTE 7  min. vrijednost skale donji bajt  (za vrijednost dimera 1)
+BYTE 8  ACK
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = DIMMER_GET
+----------------------------------------------------
+----------------------------------------------------
+preuzmi trenutne postavke jednog dimera:
+----------------------------------------------------
+BYTE 0 redni broj (izlaz) dimera gornji bajt
+BYTE 1 redni broj (izlaz) dimera donji bajt
+
+odgovor:
+BYTE 0 	redni broj (izlaz) dimera gornji bajt
+BYTE 1 	redni broj (izlaz) dimera donji bajt
+BYTE 2 	vrijednost dimera 0-100
+BYTE 3 	rampa dimera 0-50 (0 - 50 ms)
+BYTE 4 	temperatura dimera 0-150 (0 - 150 °C)
+BYTE 5 	limit temperature dimera 0-150 (0 - 150 °C)
+BYTE 6 	max. vrijednost skale gornji bajt (za vrijednost dimera 99)
+BYTE 7 	max. vrijednost skale donji bajt  (za vrijednost dimera 99)
+BYTE 8 	min. vrijednost skale gornji bajt (za vrijednost dimera 1)
+BYTE 9  min. vrijednost skale donji bajt  (za vrijednost dimera 1)
+BYTE 10 stanje dimera 0 - 2  (prema značenju) 
+								0 = init, 
+								1 = u radu, 
+								2 = greška temperaturna zaštita
+----------------------------------------------------
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = DIMMER_RESET 
+----------------------------------------------------
+resetuj dimer: 	(specijalna adresa za restart svih dimera na busu 0x55AA)
+				(restart je reinicijalizacija cijelog modula kao ciklus napajanja)
+				(reset je reinicijalizacija jednog kanala najčešće ako je preopterećen i pređe u stanje greške)
+				(nakon što se izlaz dimera ohladi potreban je reset za novi start)
+----------------------------------------------------
+BYTE 0 kanal (izlaz) dimera gornji bajt (0x55 svi dimeri samo reset stanja i vrijednost = 0 bez limmita temperature)
+BYTE 1 kanal (izlaz) dimera donji bajt  (0xAA svi dimeri samo reset stanja i vrijednost = 0 bez limmita temperature)
+
+odgovor: (osim 0x55AA)
+BYTE 0 kanal (izlaz) dimera gornji bajt
+BYTE 1 kanal (izlaz) dimera donji bajt
+BYTE 2 ACK 

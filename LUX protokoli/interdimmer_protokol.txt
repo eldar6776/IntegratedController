@@ -1,0 +1,71 @@
+interni dimmer protokol:
+DIMM_SET_VALUE 			= 0x01,
+DIMM_SET_RAMP 			= 0x02,
+DIMM_SET_TEMPERATURE 	= 0x03,
+DIMM_RESET 				= 0x04,
+DIMM_GET_STATE 			= 0x05,
+DIMM_RESTART 			= 0x06
+----------------------------------------------------
+podesi novu vrijednost dimera:
+----------------------------------------------------
+BYTE 0 redni broj dimera (0-15)
+BYTE 1 DIMM_SET_VALUE
+BYTE 2 vrijednost dimera 0-1000 gornji bajt
+BYTE 3 vrijednost dimera 0-1000 donji bajt
+
+odgovor:
+BYTE 0 ACK
+----------------------------------------------------
+podesi rampu dimmera:
+----------------------------------------------------
+BYTE 0 redni broj dimera (0-15)
+BYTE 1 DIMM_SET_RAMP
+BYTE 2 rampa dimera 0-50 
+
+odgovor:
+BYTE 0 ACK
+----------------------------------------------------
+podesi maksimalnu temperaturu dimera:
+----------------------------------------------------
+BYTE 0 redni broj dimera (0-15)
+BYTE 1 DIMM_SET_TEMPERATURE
+BYTE 2 max. temperatura dimera 0-150 (0 - 150 °C)	(0 = nema limita)
+
+odgovor:
+BYTE 0 ACK
+----------------------------------------------------
+resetuj dimer:
+----------------------------------------------------
+BYTE 0 redni broj dimera (0-15)  (0x55 svi dimeri samo reset stanja i vrijednost = 0 bez limmita)
+BYTE 1 DIMM_RESET
+BYTE 2 rampa dimera 0-50 ms
+BYTE 3 max. temperatura dimera 0-150 (0 - 150 °C)
+
+odgovor:
+BYTE 0 ACK (vrijednost = 0, stanje = init)
+----------------------------------------------------
+traži stanje dimera:
+----------------------------------------------------
+BYTE 0 redni broj dimera (0-15)
+BYTE 1 DIMM_GET_STATE
+
+odgovor:
+BYTE 0 redni broj dimera (0-15)
+BYTE 1 DIMM_GET_STATE
+BYTE 2 vrijednost dimera 0-1000 gornji bajt
+BYTE 3 vrijednost dimera 0-1000 donji bajt
+BYTE 4 rampa dimera 0-50
+BYTE 5 temperatura dimera 0-150 (0 - 150 °C)
+BYTE 6 limit temperature dimera 0-150 (0 - 150 °C)
+BYTE 7 stanje dimera 0 - 2  (prema značenju) 
+							0 = init, 
+							1 = u radu, 
+							2 = greška temperaturna zaštita
+----------------------------------------------------
+restartuj dimer:
+----------------------------------------------------
+BYTE 0 redni broj dimera (0-15)  (0x55 svi dimeri samo reset stanja i vrijednost = 0 bez limmita)
+BYTE 1 DIMM_RESTART
+
+odgovor:
+BYTE 0 ACK (vrijednost = 0, stanje = init)

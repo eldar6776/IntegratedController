@@ -1,0 +1,145 @@
+Presjek Trenutnog Stanja Projekta
+Na osnovu analize svih fajlova, ovo je trenutno stanje:
+
+Opšti Pregled Projekta:
+
+Radi se o kompleksnom embedded projektu za "Room Thermostat" (ROOM_THERMOSTAT) baziranom na STM32F746xx mikrokontroleru.
+
+
+Arhitektura je "super-loop" gdje main() funkcija poziva servisne petlje za svaki modul (DISP_Service, THSTAT_Service, RS485_Service itd.).
+
+Projekat koristi STemWin (emWin) grafičku biblioteku za korisnički interfejs.
+
+Postoji napredan sistem za višejezičnost (i18n) kroz lng() funkciju i translations.h fajl.
+
+Konfiguracije za različite module se čuvaju u EEPROM-u, a memorijska mapa je fleksibilno definisana u stm32746g_eeprom.h pomoću sizeof() operatora.
+
+Modul Alarma (security.c/.h):
+
+Trenutna logika: Modul je dizajniran da podržava više korisnika sa različitim PIN-ovima, što je definisano u Security_Users_t strukturi. Funkcija Security_ValidateUserCode trenutno vrši provjeru iteriranjem kroz tu listu korisnika.
+
+
+Neusklađenost sa zadatkom: Zadatak zahtijeva prelazak na jedan globalni PIN (system_pin) i ignorisanje postojeće logike za više korisnika.
+
+
+
+
+Nedostajuće funkcionalnosti: Modulu nedostaju polja za čuvanje korisnički definisanih naziva za sistem i particije , kao i funkcije za njihovo čitanje i postavljanje (getter/setter).
+
+
+Korisnički Interfejs (display.c/.h):
+
+Jake strane: UI modul je veoma robustan. Već posjeduje univerzalne, kontekstualne ekrane za unos teksta (SCREEN_KEYBOARD_ALPHA) i brojeva (SCREEN_NUMPAD). Ovo je idealna osnova za implementaciju promjene PIN-a i naziva particija.
+
+
+Navigacija: Navigacija između ekrana se upravlja preko screen varijable i shouldDrawScreen fleg-a. Zadatak zahtijeva refaktorisanje navigacije za Alarm i Timer module uvođenjem dugog pritiska na ikonicu.
+
+
+
+i18n Spremnost: Sistem je spreman za dodavanje novih prevoda, što je preduslov za Fazu 1.5 zadatka.
+
+Plan Realizacije Zadatka
+Pratićemo tačno faze definisane u Gemini zadatak alarm.txt.
+
+Faza 1: Proširenje Backend-a (Moduli security i main)
+Ovo je preduslov za sve ostalo i radimo ga prvo.
+
+
+Korak 1.1: Proširenje Security_Settings_t strukture 
+
+Fajl: security.h
+
+
+Akcija: Dodaću polja za system_name i partition_names u Security_Settings_t strukturu, odmah nakon magic_number polja, kako je specificirano.
+
+
+Korak 1.2: Ažuriranje logike u security.c 
+
+Fajl: security.c
+
+Akcije:
+
+U funkciji Security_SetDefault(), inicijalizovaću nova polja na podrazumijevane vrijednosti ("SYSTEM", "PARTITION 1" itd.).
+
+Kreiraću nove getter i setter funkcije: Security_GetSystemName(), Security_SetSystemName(), Security_GetPartitionName(), Security_SetPartitionName().
+
+Korak 1.3: Implementacija validacije sa Glavnim PIN-om
+
+Fajl: security.c
+
+
+Akcija: Izmijeniću funkciju Security_ValidateUserCode() tako da umjesto provjere liste korisnika, vrši strcmp poređenje samo sa globalnom varijablom system_pin koja se učitava u main.c.
+
+Faza 1.5: Priprema za Internacionalizaciju (i18n)
+Ove izmjene radimo prije nego što počnemo sa UI-jem.
+
+Korak 1.5.1: Dodavanje novih TextID enumeracija
+
+Fajl: display.h
+
+
+Akcija: U TextID enum ću dodati sve nove identifikatore za tekstove potrebne za alarm i proces promjene PIN-a, tačno kako je navedeno u zadatku.
+
+Korak 1.5.2: Dodavanje novih prevoda
+
+Fajl: translations.h
+
+
+Akcija: U language_strings tabelu ću dodati prevode za sve nove TextID-jeve, počevši sa BSHC jezikom.
+
+Faza 2: Implementacija UI za Podešavanje Alarma
+Sada kada je backend spreman, krećemo sa korisničkim interfejsom.
+
+Korak 2.1: Kreiranje novog ekrana SCREEN_SETTINGS_ALARM
+
+Fajlovi: display.h, display.c
+
+Akcije:
+
+Dodaću SCREEN_SETTINGS_ALARM u eScreen enum u display.h.
+
+U display.c ću kreirati funkcije DSP_InitSettingsAlarmScreen(), DSP_KillSettingsAlarmScreen() i Service_SettingsAlarmScreen().
+
+U Init funkciji ću kreirati 5 dugmadi i implementirati "pametnu logiku" za prikaz teksta: ako postoji custom naziv, prikazuje se on; ako ne, prikazuje se default prevedeni naziv (npr. "Naziv Particije 1").
+
+Korak 2.2: Implementacija trostupanjske promjene PIN-a
+
+Fajl: display.c
+
+Akcija: Proširiću Service_NumpadScreen() da upravlja state-machineom za promjenu PIN-a. Koristiću Display_ShowNumpad() sa dinamičkim, prevedenim naslovima (lng(TXT_PIN_ENTER_CURRENT), itd.) za svaki od tri koraka, kao i za poruke o grešci.
+
+Korak 2.3: Implementacija promjene naziva sistema i particija
+
+Fajl: display.c
+
+Akcija:
+
+Na pritisak dugmeta za promjenu naziva u Service_SettingsAlarmScreen(), pozvaću Display_ShowKeyboard().
+
+Kontekst za tastaturu ću popuniti sa odgovarajućim naslovom i trenutnim nazivom.
+
+Nakon potvrde unosa, u Service_KeyboardScreen() ću pozvati Security_Set...Name() funkcije i Security_Save().
+
+Faza 3: Refaktorisanje UI Navigacije
+Finalna faza za poboljšanje korisničkog iskustva.
+
+Korak 3.1: Implementacija dugog pritiska za Alarm i Timer
+
+Fajl: display.c
+
+Akcija: U funkciji HandlePress_SelectScreen2, na dodir ikonice za Alarm ili Timer, pokrenuću tajmer. U HandleTouchReleaseEvent ću provjeriti trajanje pritiska. Ako je kratak, prelazimo na SCREEN_SECURITY/SCREEN_TIMER. Ako je dug, prelazimo na SCREEN_SETTINGS_ALARM/SCREEN_SETTINGS_TIMER.
+
+Korak 3.2: Uklanjanje "Settings" ikonice sa SCREEN_TIMER
+
+Fajl: display.c
+
+
+Akcija: Izbrisaću kod za kreiranje i obradu hButtonTimerSettings unutar Service_TimerScreen() i HandlePress_TimerScreen().
+
+Korak 3.3: Ažuriranje SCREEN_SECURITY ekrana
+
+Fajl: display.c
+
+
+Akcija: U funkciji Service_SecurityScreen(), umjesto fiksnih tekstova, primijeniću istu "pametnu logiku" kao u Koraku 2.1 za dinamički prikaz naziva na dugmadima.
+

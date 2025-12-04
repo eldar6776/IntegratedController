@@ -1,0 +1,53 @@
+primjer termostat info strukture koja se šalje za svaku promjenu: izmjerena temperatura, setpoint, on/off, heating/cooling... na slave poruke master odgovara potvrdno, na master poruke nema odgovora
+
+typedef struct{
+	uint8_t th_id;				// može biti i više od jednog termostata na jednom kontroleru koji pripadaju različitim grupama
+								// ovo je id (adresa) master termostata na koju se odnose THERMOSTAT_GET / THERMOSTAT_SET / THERMOSTAT_RESET / THERMOSTAT_SETUP tipovi (komande) 
+								// ova adresa je različita od adrese (id) kontrolera koja je za cijeli uređaj i služi za restart, update...
+								// ovo je ujedno i adresa za sinhronizaciju više termostata (adresa grupe), ovu adresu imaju istu svi sinhronizovani termostati jedne grupe
+	uint8_t th_role;			// master/slave, samo jedan master termostat u grupi mjeri temperaturu i šalje komande aktuatorima, slave termostati fukcionišu na info kanalu
+								// ako je u novo primljenoj info strukturi sa podešenom istom th_id adresom na info kanalu ovaj član podešen kao master, a primljen je na
+								// već postojećem master termostatu te grupe, on će svoju ulogu promjeniti u slave trajno, a novi master termostat je negdje podešen i dodjeljen grupi
+	uint8_t th_ctrl;			// podešena kontrola: off,heating,cooling...
+								// bilo koji termostata u grupi može promjeniti kontrolu iz npr. grijanja u hlađenje ili isključiti/uključiti termostate
+								// kada dođe novi info termostata sa drugačijim th_ctrl od sopstvenog, validan je novi primljeni i mijenja se sopstveni
+								// tako master termostat isključuje ili uključuje aktuatore prema th_ctrl koji je poslao neki od slave termostata
+								// dok ostali slave termostati u grupi samo mijenjaju info tekst ili grafiku prema novom th_ctrl
+								// kada se tek uključi, a i povremeno, slave uređaj će poslati praznu info strukturu, na što će master poslati svoju info strukturu
+    uint8_t th_state;          	// status master termostata: greška(npr. ntc senzora),isključen, uključen neaktivan, uključen, aktivan, info, remote..
+								// samo od master termostata se uzima ovaj član, a od slave nije bitan
+								// master uređaj mjeri temperaturu i on će reagovati na promjenu temperature i aktivirati aktuatore
+								// ovu promjena stanja slave termostati u grupi koriste za prikaz kroz tekst ili grafiku 
+    int16_t mv_temp;           	// izmjerena temperatura x 0.1°C je bitna samo od master termostata, od slave nije bitna, oni prikazuju ovu vrijednost
+    uint8_t sp_temp;           	// temperature setpoint  x 1°C.... bilo koji uređaj u grupi može promjeniti zadanu temperaturu
+}thermo_info_t;
+
+
+
+primjer termostat strukture, treba je prilagodit projektu, treba imat u vidu sve vrste motora koje se koriste...
+samo master termostat treba sve postavke i samo master termostat odgovara na adresirani id termostata
+t.j. na tipove (komande)  THERMOSTAT_GET / THERMOSTAT_SET / THERMOSTAT_RESET / THERMOSTAT_SETUP, 
+slave termostati trebaju samo dio iz info strukture i ne memorišu promjene nego rade dinamički u busu, 
+na grešku komunikacije t.j. kada nema ogovora na th_ctrl=info niti niti prve info strukture grupe
+trebaju biti u defaultnom stanju isključeno th_ctrl=off do prvog update-a na info kanalu.
+
+typedef struct{
+	uint16_t th_id;				// thermostat tinyframe id (address)
+	uint8_t  th_role;			// thermostat role: master/slave
+    uint8_t  th_ctrl;           // thermostat control: off,auto,manual,heating,cooling,enabled,disabled,network
+    uint8_t  th_state;          // thermostat status
+    int16_t  mv_temp;           // temperature measured value  (read only on master)
+    int8_t   mv_offset;         // temperature measured value  offset +/- 10.0°C
+    uint8_t  sp_temp;           // temperature setpoint  x 1°C
+    uint8_t  sp_diff;           // temperature setpoint difference x 0.1°C
+    uint8_t  sp_max;            // temperature setpoint maximum for user x 1°C
+    uint8_t  sp_min;            // temperature setpoint minimum for user x 1°C
+    uint8_t  fan_ctrl;          // fan control: off,auto,manual 1-2-3,quiet mode   
+    uint8_t  fan_speed;         // fan speed actual/set value depend on fan control type
+    uint8_t  fan_diff;          // fan speed minimum difference to switch output
+    uint8_t  fan_loband;        // fan speed controller low band 
+    uint8_t  fan_hiband;        // fan speed controller high band
+    uint8_t  fan_quiet_start;   // fan quiet mode start hour 	0 -| off
+    uint8_t  fan_quiet_end;     // fan quiet mode end hour		0 -| off
+    uint8_t  fan_quiet_speed;   // fan quiet mode speed limit
+}thermo_t;

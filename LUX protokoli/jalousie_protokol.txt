@@ -1,0 +1,60 @@
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = JALOUSIE_SET
+----------------------------------------------------
+podesi jedan izlaz žaluzina:
+----------------------------------------------------
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+BYTE 2 novo stanje 0 = OFF, 1 = UP, 2 = DOWN
+
+odgovor:
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+BYTE 2 žaluzina izlaz stanje 0 = OFF, 1 = UP, 2 = DOWN
+BYTE 3 ACK
+----------------------------------------------------
+----------------------------------------------------
+
+kanal za komunikaciju je TF_TYPE = JALOUSIE_SETUP
+----------------------------------------------------
+podesi timer jednog izlaza žaluzina:
+----------------------------------------------------
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+BYTE 2 žaluzina timer 0 = OFF, 1~255 sekundi
+
+(samo ako je eeprom ispravan 0 će isključiti timeout trajno i izlaz će raditi neograničeno,
+ako je eeprom neispravan poslani timeout se neće koristiti, koristiće se defaultna vrijednost 255 sekundi)
+
+odgovor:
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+BYTE 2 žaluzina timer sekundi
+BYTE 3 ACK / NAK (NAK = ako je eeprom neispravan poslani timeout se neće koristiti, koristiće se defaultna vrijednost 255 sekundi)
+----------------------------------------------------
+----------------------------------------------------
+
+kanal za komunikaciju je TF_TYPE = JALOUSIE_GET
+----------------------------------------------------
+provjeri stanje jednog izlaza žaluzina:
+----------------------------------------------------
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+
+odgovor:
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+BYTE 2 žaluzina izlaz stanje 0 = OFF, 1 = UP, 2 = DOWN
+BYTE 3 žaluzina timer 0 = OFF, 1~255 sekundi
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = JALOUSIE_RESET
+----------------------------------------------------
+resetuj modul žaluzina na kojem je adresirani kanal:
+----------------------------------------------------
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+
+odgovor:
+BYTE 0 žaluzina izlaz gornji bajt
+BYTE 1 žaluzina izlaz donji bajt
+BYTE 2 ACK

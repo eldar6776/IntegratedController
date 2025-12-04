@@ -1,0 +1,42 @@
+----------------------------------------------------
+kanal za komunikaciju je TF_TYPE = BINARY_SET
+----------------------------------------------------
+podesi jedan binarni izlaz:
+----------------------------------------------------
+BYTE 0 binarni izlaz gornji bajt
+BYTE 1 binarni izlaz donji bajt
+BYTE 2 novo stanje 1 = ON, 2 = OFF
+
+odgovor:
+BYTE 0 binarni izlaz gornji bajt
+BYTE 1 binarni izlaz donji bajt
+BYTE 2 binarni izlaz stanje 1 = ON, 2 = OFF
+BYTE 3 ACK
+----------------------------------------------------
+----------------------------------------------------
+
+kanal za komunikaciju je TF_TYPE = BINARY_GET
+----------------------------------------------------
+provjeri stanje jednog binarnog izlaza:
+----------------------------------------------------
+BYTE 0 binarni izlaz gornji bajt
+BYTE 1 binarni izlaz donji bajt
+
+odgovor:
+BYTE 0 binarni izlaz gornji bajt
+BYTE 1 binarni izlaz donji bajt
+BYTE 2 binarni izlaz stenje 1 = ON, 2 = OFF
+----------------------------------------------------
+----------------------------------------------------
+
+kanal za komunikaciju je TF_TYPE = BINARY_RESET
+----------------------------------------------------
+resetuj modul čiji je adresirani izlaz:
+----------------------------------------------------
+BYTE 0 binarni izlaz gornji bajt
+BYTE 1 binarni izlaz donji bajt
+
+odgovor:
+BYTE 0 binarni izlaz gornji bajt
+BYTE 1 binarni izlaz donji bajt
+BYTE 2 ACK
