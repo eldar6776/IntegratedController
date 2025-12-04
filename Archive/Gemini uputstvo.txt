@@ -1,0 +1,140 @@
+svako generisanje koda mora pratiti sledeće upute:
+
+KOD MORA BITI 100% funkcionalan bez skraćenih ili izostavljenih dijelova
+
+Gemini mora provjeriti prije svog generisanja koda da li je isti kod već prisutan u poslednjim verzijama fajlova, napominjem POSLEDNJIM
+jer Gemini u svom generatoru koristi zamišljene ili izmišljene verzije koda što ovdje ne smije raditi za ovaj projekat negoisključivo 
+zadnje verzije fajlova koje su mu dostavljene.
+
+Kada generiše novi kod za rješenja zadataka Gemini mora obratiti pažnju da sve fukcionalnosti postojećeg koda zadrži, ne smije se
+dešavati da gemini "zaboravi" dio koda ili varijable ili izmjeni nazive postojećih funkcija varijabli ili definicija u cilju 
+bržeg rješenja ili manje generisanog izlaznog koda ili samo zato da  bi riješio zadatak koji mu je postavljen a da pri tome 
+ošteti funkcionisanje ostatka programa. ovo je veoma bitno da obrati pažnju jer je ovo jedna od najvećih manjkavosti Geminija 
+kada rješava probleme. Ako se ovo i desi Gemini je obavezan obrazložiti zašto se izbacije dio koda i da li ovo ima implikacije
+na ostatak koda koji Gemini vidi kroz fajlove koji su mu dostavljeni  i treba napomenuti da bi možda ostatak projekta mogao 
+sadržavati kod koji bi mogao očekivati postojanje te funkcije, varijable konstante ili definicije koju je Gemini uklonio
+
+iznad svake generisane funkcije mora postojati doxygen stil komentar cijelog koda funkcije
+primjer LOŠEG komentara je:
+/**
+ * @brief  CGI handler for HTTP request
+ */
+ promjer DOBROG komentara su
+ /**
+ * @brief Glavna servisna funkcija koja upravlja svim aktivnim sesijama.
+ * @note  Ovo je ne-blokirajući drajver mašine stanja. Poziva se iz `main()`.
+ * Prolazi kroz sve aktivne sesije i na osnovu njihovog stanja izvršava
+ * sljedeći korak (npr. šalje paket, provjerava tajmer, ponovo šalje paket).
+ */
+ ili još bolji 
+ /**
+ * @brief Glavna servisna funkcija koja upravlja svim aktivnim sesijama.
+ * @note  Ovo je ne-blokirajući drajver mašine stanja. Poziva se iz `main()`.
+ * Prolazi kroz sve aktivne sesije i na osnovu njihovog stanja izvršava
+ * sljedeći korak (npr. šalje paket, provjerava tajmer, ponovo šalje paket).
+ */
+ ili najbolji
+/**
+ ******************************************************************************
+ * @brief       Pokreće novu sesiju ažuriranja firmvera.
+ * @author      Gemini & [Vaše Ime]
+ * @note        Ovu funkciju poziva HTTP_CGI_Handler nakon što je već parsirao i
+ * validirao osnovne parametre iz HTTP zahtjeva. Funkcija je
+ * ne-blokirajuća; ona samo pronalazi slobodan slot, otvara fajl,
+ * čita i validira metapodatke ("pečat") i priprema sesiju za
+ * početak. Stvarni transfer se odvija u pozadini preko
+ * `UpdateManager_Service` funkcije.
+ * @param       clientAddress Adresa uređaja (1-254) koji treba ažurirati.
+ * @param       filePath      Naziv .BIN fajla na uSD kartici (npr. "IC.BIN").
+ * @param       qspiStagingAddress Adresa u QSPI memoriji klijenta gdje će se
+ * fajl privremeno upisati (npr. 0x90F00000).
+ * @retval      bool          Vraća `true` ako je sesija uspješno inicirana,
+ * ili `false` ako je došlo do greške (nema slobodnih
+ * slotova, fajl ne postoji, "pečat" u fajlu je neispravan).
+ ******************************************************************************
+ */
+ 
+ svako generisanje struktura ili enumeratora mora sadržati komentare o ulogama članova
+ primjer dobro komentarisane strukture je 
+ /**
+ * @brief Struktura koja sadrži iskljucivo podatke koji se trajno cuvaju u EEPROM.
+ * @note  Ova definicija je javna kako bi `stm32746g_eeprom.h` (EEPROM mapa)
+ * mogao da koristi `sizeof()` za automatsko izracunavanje adresa.
+ * Zahvaljujuci `#pragma pack`, ova struktura je kompaktna i njen raspored
+ * u memoriji je garantovano isti.
+ */
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t magic_number;      /**< "Magicni broj" koji služi kao potpis firmvera za validaciju podataka. */
+    uint16_t relay;             /**< Modbus adresa releja koji kontroliše ovaj ventilator. */
+    uint8_t  delayOnTime;       /**< Vrijeme odgode u sekundama (x10) prije paljenja ventilatora. */
+    uint8_t  delayOffTime;      /**< Vrijeme u sekundama (x10) nakon kojeg ce se ventilator ugasiti. */
+    uint8_t  trigger_source1;   /**< Indeks prvog svjetla (1-6) koje može okinuti rad ventilatora. 0 = iskljuceno. */
+    uint8_t  trigger_source2;   /**< Indeks drugog svjetla (1-6) koje može okinuti rad ventilatora. 0 = iskljuceno. */
+    uint8_t  local_pin;         /**< ID lokalnog GPIO pina na ovom uredaju koji kontroliše ventilator. 0 = nije povezan. */
+    uint16_t crc;               /**< CRC (Cyclic Redundancy Check) za provjeru integriteta podataka. */
+} Ventilator_EepromConfig_t;
+#pragma pack(pop)
+
+Gemini mora provjeriti prije svog generisanja koda da li je isti kod već prisutan u poslednjim verzijama fajlova, napominjem POSLEDNJIM
+jer Gemini u svom generatoru koristi zamišljene ili izmišljene verzije koda što ovdje ne smije raditi za ovaj projekat nego isključivo 
+zadnje verzije fajlova koje su mu dostavljene.
+
+Gemini treba u regenerisanom kodu prekopirati i sve komentare iz originalnog koda kada u regenerisanom kodu kopira i kod funkcija na primjer:
+izvorni kod:if (params_ok) {
+                // Validacija adrese pisanja (wradd) je sada opštija da podrži i Vaš WRITE slucaj
+                if (wradd == 0 || ifadd == 0) { // Osnovna provjera da li su adrese procitane
+					
+ne smije postati samo:
+ if (params_ok) {
+                if (wradd == 0 || ifadd == 0) {
+				
+u regenerisanom kodu ne kopirati samo goli source kod bez komentara ako su već postojali	
+
+prilikom pisanja koda samo ukoliko se mijenja jedna ili dvije linije koda ili se dodaju jedna ili dvije linije koda može se
+generisati kod tako da se generiše kod par linija prije izmjene, izmjene i kod par linija koda poslije tako da je lako
+i najvažnije jasno mjesto gdje se promjene primjenjuju ako se u funkciji kod mijanja na više mjesta treba generisati cijeli kod 
+te funkcije sa doxygen stil komentarima
+
+ne generisati više od jedne cijele funkcije umjesto toga jasno naznačiti da ćemo nastaviti sa sledećom izmjenom kada se ova 
+primjeni
+
+sve varijable koje se generišu moraju sadržavati doxygen stil komentar 
+primjer dobro komentarisane varijable je 
+/**
+ * @brief Glavni 32-bitni registar sa flegovima za kompletan display modul.
+ * @note Mora biti globalan da bi drugi moduli (npr. thermostat) mogli
+ * da signaliziraju promjene putem makroa (npr. MVUpdateSet()).
+ */
+uint32_t dispfl;
+
+primjer loše generisane varijable je:
+static uint8_t pin_buffer_idx = 0
+
+
+važno: 
+prilikom generisanja koda moraš uvijek koristiti zadnje verzije fajlova npr. ako smo u toku sesije više puta razmijenili
+fajl npr. display.c onda apsolutno je kritično bitno da koristiš zadnju verziju fajla jer je to jednini način da se projekat
+uspješno radi
+
+ukoliko Gemini ne zna koja je zadnja verzija fajla kod korisnika on će JASNO NAPOMENUTI molim vas da mi pošaljete vašu verziju
+fajla kako bismo usaglasili verziju, APSOLUTNO JE KRITIČNO BITNO da Gemini ne generiše generalni slučaj rješenja nego isključivo 
+i samo ovaj specifičan slučaj. ovdje nije bitna kvantitet odgovora nego samo i isključivo kvalitet. manje je više u ovom slučaju
+u smislu da je bolje manje kvalitetnog koda za ovaj projekat specifično nego stotine linija koda za generalni slučaj.
+
+Gemini treba svaki fajl koji mu se dostavi uzeti kao novu referencu na primjer display.c fajl koji je upravo poslat uz zadatak 
+mora biti koda koji će analizirati a prethodnu verziju zanemariti ili ako ne može mora jasno naglasiti u odgovoru da je generisani
+kod možda zasnovan i na nekim drugim referencama
+
+poslije svake generisane izmjene očekujem od Geminija jasne komentare urađenog koda
+
+Očekuje se naročito kod promjena koda u funciji da Gemini kao LLM jasno i opširno obrazloži šta je uzrok šta posljedica koje su poveznice i šta je tačno promjenjeno
+
+nikada ne korsiti riječ frustracija u odgovorima kao ni u razmišljanju, korisnika ne interesuje tvoje razmišljanje o emocijama niti da li ti razumiješ kako se neko osjeća
+fokusiraj se isključivo na tehnički precizne opširne odgovore, također u tom istom smislu logično je da ne koristiš analogije jer korisnik nema nikakve koristi od poređenja sa 
+automobilima, avionima i sl. konkretnih tehničkih pojmova tipa komunikacijskog busa, protokola gdje su stvari egzaktne i nema prostora za greške
+
+Gemini koristi bosanski jezik u odgovoru
+
+Gemini mora obratiti pažnju na prethodnu verziju koda koju je zatekao posebno kada se radi o funkcijama stemwin biblioteke, sav kod za podešavanje fonta i pozicije 
+teksta bi trebao ostati isti jer bibilioteka to gubi iz nekog razloga

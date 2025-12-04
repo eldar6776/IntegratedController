@@ -1,0 +1,133 @@
+Finalni Plan Implementacije v7.0: Sveobuhvatno Refaktorisanje Modula Termostata
+Cilj: Preurediti thermostat modul u visoko-konfigurabilnu i inteligentnu jedinicu koja podržava napredne scenarije: višestruke krugove grijanja sa odgodom pumpi, odvojenu kontrolu ventila hlađenja sa specifičnom logikom odgode ventilatora, različite tipove i lokacije kontrole ventilatora (Lokalno/Bus), te korištenje eksternog senzora temperature, uz zadržavanje robusne arhitekture. 
+Faza 1: Proširenje Konfiguracije i Backend-a (Modul thermostat)
+Ova faza postavlja temelje za sve nove funkcionalnosti proširenjem struktura podataka i pratećih funkcija.
+Zadatak 1.1: Ažuriranje thermostat.h
+
+Potpuna zamjena postojeće 
+
+THERMOSTAT_EepromConfig_t strukture novom, koja sadrži sve dogovorene opcije. 
+
+// Definicije za tip i lokaciju kontrole ventilatora
+typedef enum {
+    FAN_CONTROL_NONE,
+    FAN_CONTROL_ON_OFF,
+    FAN_CONTROL_3_SPEED,
+    FAN_CONTROL_PWM_BLDC
+} FanControlType_e; [cite: 385]
+
+typedef enum {
+    LOCATION_NONE,
+    LOCATION_LOCAL, // Koriste se GPIO/PWM pinovi ovog uređaja
+    LOCATION_BUS    // Koriste se eksterne jedinice na RS485 bus-u
+} FanControlLocation_e; [cite: 386]
+
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t magic_number; [cite: 4]
+    uint8_t  group; [cite: 4]
+    bool     master; [cite: 4]
+    bool     use_external_sensor; // Fleg za korištenje eksternog senzora [cite: 5, 243]
+    
+    // --- Osnovna Logika ---
+    uint8_t  th_ctrl; [cite: 5]
+    uint8_t  sp_temp; [cite: 6]
+    uint8_t  sp_max; [cite: 6]
+    uint8_t  sp_min; [cite: 6]
+    uint8_t  sp_diff; [cite: 6, 423]
+    
+    // --- Krugovi Grijanja (Dva kruga) ---
+    uint16_t heating_valve1_addr; [cite: 7]
+    uint16_t heating_pump1_addr; [cite: 7]
+    uint8_t  heating_pump1_delay_s; [cite: 7]
+    uint16_t heating_valve2_addr; [cite: 8]
+    uint16_t heating_pump2_addr; [cite: 8]
+    uint8_t  heating_pump2_delay_s; [cite: 8, 424]
+
+    // --- Krug Hlađenja ---
+    uint16_t cooling_valve_addr;      // Adresa ventila za hlađenje [cite: 425]
+    uint8_t  cooling_fan_delay_s;     // Vrijeme odgode za ventilator (u sekundama) [cite: 425, 426]
+
+    // --- Pomoćni Releji ---
+    uint16_t mode_relay_addr;         // Relej koji prati mod (Grijanje/Hlađenje) [cite: 8]
+    uint16_t state_relay_addr;        // Relej koji prati stanje (ON/OFF) [cite: 8]
+
+    // --- Podešavanja Ventilatora (Fancoil) ---
+    FanControlType_e     fan_control_type;     // Način upravljanja: ON/OFF, 3 Brzine, PWM... [cite: 286]
+    FanControlLocation_e fan_control_location; // Lokacija: Lokalno ili na Bus-u [cite: 287]
+    
+    // Resursi za kontrolu (pinovi za lokalnu, adrese za bus)
+    uint8_t  fan_pin1, fan_pin2, fan_pin3; [cite: 288, 289, 290]
+    uint16_t fan_bus_addr1, fan_bus_addr2, fan_bus_addr3; [cite: 291, 292, 293]
+    
+    // Logički parametri ventilatora (univerzalni)
+    uint8_t  fan_diff;   // Histereza za ON/OFF i 3-Speed; Histereza do starta za BLDC [cite: 9, 390]
+    uint8_t  fan_loband; // Razlika do brzine 2 za 3-Speed; Minimalni PWM za BLDC [cite: 9, 390]
+    uint8_t  fan_hiband; // Razlika do brzine 3 za 3-Speed; Proporcionalni opseg za BLDC [cite: 10, 390]
+
+    uint16_t crc; [cite: 10]
+} THERMOSTAT_EepromConfig_t;
+#pragma pack(pop)
+Zadatak 1.2: Ažuriranje thermostat.c
+
+Defaultne Vrijednosti: Proširiti Thermostat_SetDefault() da inicijalizuje sve nove članove u strukturi na 0 ili false. 
+Getteri/Setteri: Kreirati kompletan set gettera i settera za svaki novi član strukture (npr. Thermostat_GetHeatingValve1Addr, Thermostat_SetHeatingValve1Addr, Thermostat_UsesExternalSensor, Thermostat_GetFanControlType itd.). 
+Proširenje Runtime Strukture: U struct THERMOSTAT_TypeDef_s dodati nove članove za praćenje složene mašine stanja i tajmera. 
+
+typedef enum {
+    THST_STATE_IDLE,
+    THST_STATE_STARTING_HEATING,   // Čekanje da se otvore ventili grijanja
+    THST_STATE_ACTIVE_HEATING,
+    THST_STATE_STARTING_COOLING,   // Ventil hlađenja otvoren, čeka se odgoda za ventilator
+    THST_STATE_ACTIVE_COOLING,
+    THST_STATE_STOPPING_COOLING    // Ventil hlađenja zatvoren, ventilator radi još X sekundi
+} ThermostatState_e; [cite: 12, 430]
+
+struct THERMOSTAT_TypeDef_s {
+    THERMOSTAT_EepromConfig_t config;
+    // ... postojeće runtime varijable ...
+    ThermostatState_e runtime_state; [cite: 13, 251]
+    uint32_t timer1_start_tick;      // Univerzalni tajmer 1 (za pumpu 1, odgodu ventilatora...) [cite: 14, 252]
+    uint32_t timer2_start_tick;      // Univerzalni tajmer 2 (za pumpu 2...) [cite: 14, 252]
+};
+Faza 2: Redizajn Glavne Logike (THSTAT_Service)
+Kompletna 
+
+THSTAT_Service funkcija će biti refaktorisana da koristi mašinu stanja. 
+Logika Odluke: Na vrhu funkcije ostaje dio koji na osnovu trenutne i zadate temperature odlučuje da li je potrebno GRIJANJE, HLAĐENJE ili MIROVANJE. 
+Mašina Stanja: Glavni dio funkcije postaje switch (handle->runtime_state) koji upravlja složenim sekvencama: 
+Grijanje: Prelazak iz IDLE -> STARTING_HEATING (otvaranje ventila, start tajmera za pumpe) -> ACTIVE_HEATING (paljenje pumpi nakon isteka tajmera). 
+Hlađenje: Prelazak iz IDLE -> STARTING_COOLING (otvaranje ventila hlađenja, start tajmera za ventilator) -> ACTIVE_COOLING (paljenje ventilatora nakon isteka tajmera). 
+Zaustavljanje Hlađenja: Prelazak iz ACTIVE_COOLING -> STOPPING_COOLING (zatvaranje ventila, start tajmera za gašenje ventilatora) -> IDLE (gašenje ventilatora nakon isteka tajmera). 
+Izvršna Funkcija: Logika za fizičku kontrolu izlaza (releji, pinovi, bus komande) će biti u odvojenoj, internoj funkciji Thermostat_ExecuteOutput(), koja se poziva iz mašine stanja. 
+
+Faza 3: Ažuriranje Komunikacije i Sistemske Logike
+Zadatak 3.1: Ažuriranje rs485.c
+Implementirati dvije ključne izmjene u 
+THERMOSTAT_INFO_Listener funkciji: 
+Logika za Eksterni Senzor: Dodati blok koji provjerava da li je uređaj Master i da li mu je aktivna opcija use_external_sensor. Ako jeste, provjeriće da li dolazna poruka ima 
+master_flag == 2 i, ako ima, preuzeće vrijednost temperature. 
+Logika za Rješavanje Konflikta: Izmijeniti provjeru za degradiranje mastera da reaguje isključivo na master_flag == 1, kako bi se izbjeglo pogrešno aktiviranje od strane eksternog senzora. 
+Zadatak 3.2: Ažuriranje main.c (ADC3_Read)
+Na početak 
+ADC3_Read funkcije dodati "zaštitnu" provjeru koja preskače očitavanje lokalnog NTC senzora ako je Master konfigurisan da koristi eksterni senzor. Ovo osigurava da nakon restarta Master neće koristiti lokalni senzor ako je eksterni odabran u postavkama. 
+
+Faza 4: Redizajn Korisničkog Interfejsa (UI) (display.c)
+Podešavanja termostata se dijele na dva odvojena ekrana radi preglednosti, a redoslijed menija se logički reorganizuje bez re-numerisanja 
+
+eScreen enuma. 
+
+Ekran 1: Termostat - Logika i Tip Kontrole
+ovaj ekrn ostaje isti samo se dodaju dva čekboksa ispod Checkbox: Master/Slave, dodajemo  Checkbox: Koristi Ekst. Senzor. i Checkbox: Lokacija (Lokalna/Bus),
+Tri univerzalna spinbox-a čije se labele mijenjaju zavisno od odabira u "Tip Ventilatora": 
+Ako je "3 Brzine": Labele su "Razlika do Brzine 1", "Razlika do Brzine 2", "Razlika do Brzine 3". 
+Ako je "PWM/BLDC": Labele su "Histereza do Starta", "Minimalni PWM (%)", "Prop. Opseg (°C x0.1)". 
+Ekran 2: Termostat - Hardverske Postavke (I/O)
+Ovaj ekran služi isključivo za definisanje fizičkih konekcija i adresa. 
+Sekcija 1: Grijanje: 6 spinbox-ova za adrese ventila i pumpi, te vremena odgode za dva kruga grijanja. 
+Sekcija 2: Hlađenje: 2 spinbox-a za adresu ventila hlađenja i vrijeme odgode ventilatora. 
+Sekcija 3: Pomoćni Izlazi: 2 spinbox-a za mode_relay_addr i state_relay_addr. 
+Sekcija 4: Ventilator (Fancoil): Prikaz spinbox-ova je kaskadni, tj. zavisi od odabira na prethodnom ekranu: 
+Ako je lokacija "Lokalna", prikazuju se spinbox-ovi za pinove (Pin 1, Pin 2, Pin 3). 
+Ako je lokacija "Bus", prikazuju se spinbox-ovi za adrese (
+Adresa 1, Adresa 2, Adresa 3). 

@@ -1,0 +1,279 @@
+Sveobuhvatni Plan Projekta: Modul za Upravljanje Pristupom ("Gate Control")
+1. Sažetak Projekta
+
+Cilj ovog projekta je integracija naprednog, fleksibilnog i korisnički orijentisanog modula za upravljanje pristupom u postojeći firmver "IC" (Integrated Controller). Modul će omogućiti kontrolu do 6 različitih tipova barijera, uključujući krilne i klizne kapije, garažna vrata, rampe i pješačka vrata sa pametnim bravama. Ključni zahtjev je da korisničko iskustvo za konfiguraciju i upravljanje ovim uređajima bude identično dokazanom i uspješnom modelu koji se koristi za modul "Lights".
+
+2. Ključni Arhitektonski Principi
+
+Implementacija će se voditi sljedećim principima koje smo zajedno definisali:
+
+Univerzalna State Mašina (USM): Jedna, centralna mašina stanja unutar gate.c će upravljati logikom za sve tipove uređaja.
+
+Biblioteka Profila Kontrole: Ponašanje svakog uređaja neće biti hardkodirano. Definisat će se kroz set metapodataka ("Profil Deskriptor") unutar konstantne biblioteke u gate.c. Dodavanje novih tipova motora u budućnosti svodi se na dodavanje novog unosa u ovu biblioteku, bez izmjene koda state mašine.
+
+Razdvajanje Ponašanja od Prezentacije: Tehnička konfiguracija (npr. control_type - "BFT S-S") biće potpuno odvojena od vizuelne prezentacije (npr. appearance_id - ikonica i naziv "Glavna Garaža").
+
+Konzistentno Korisničko Iskustvo: Svi aspekti UI/UX (podešavanja, preimenovanje, kontrola) će preslikati funkcionalnost lights modula.
+
+Fiksni i Pametni UI: Ekrani za podešavanja će imati fiksni raspored. Kontrole koje nisu relevantne za odabrani "Profil Kontrole" biće vizuelno onemogućene (sive), a ne sakrivene, pružajući jasan i konzistentan interfejs.
+
+3. Faze Implementacije
+Faza I: Backend - Definicija Struktura i Podataka (Temelj)
+Cilj: Pripremiti sve potrebne strukture podataka i enumeratore.
+
+1.1. Modifikacija display.h:
+
+Proširiti IconID enum sa novim vrijednostima za kapije (ICON_GATE_SWING, ICON_GATE_SLIDING, ICON_GATE_GARAGE, ICON_GATE_RAMP, ICON_GATE_PEDESTRIAN_LOCK).
+
+Proširiti TextID enum sa novim vrijednostima za nazive i opise kapija (TXT_GATE_GARAGE, TXT_GATE_MAIN_ENTRANCE, itd.).
+
+1.2. Modifikacija translations.h:
+
+Kreirati novu strukturu GateAppearanceMapping_t (po uzoru na IconMapping_t za svjetla).
+
+Kreirati const niz gate_appearance_mapping_table[] koji mapira IconID na TextID za primarni i sekundarni naziv.
+
+1.3. Modifikacija gate.h (Ključni korak):
+
+Preimenovati GateType_e u GateIcon_e.
+
+Kreirati novi enum GateControlType_e koji definiše logička ponašanja (npr. CONTROL_TYPE_BFT_STEP_BY_STEP, CONTROL_TYPE_SIMPLE_LOCK).
+
+Kreirati strukturu ProfilDeskriptor_t koja sadrži: profile_id, profile_name, visible_settings_mask, i command_map.
+
+Redizajnirati Gate_EepromConfig_t da sadrži: control_type, appearance_id, custom_label, relay_pulse_mask, te generičke relay_cmd1-4 i feedback_input1-3.
+
+Definisati makroe za bitove za visible_settings_mask i relay_pulse_mask.
+
+Ažurirati sve prototipove funkcija (GetCustomLabel, TriggerUnlock, itd.).
+
+1.4. Kreiranje Biblioteke u gate.c:
+
+Implementirati const ProfilDeskriptor_t g_ControlProfileLibrary[] niz. Popuniti ga sa početnim profilima (npr. za BFT, NICE i bravu) kao što smo diskutovali.
+
+1.5. Ažuriranje stm32746g_eeprom.h:
+
+Provjeriti i osigurati da se adresa EE_GATES i dalje ispravno računa na osnovu sizeof(Gate_EepromConfig_t).
+
+Faza II: Backend - Implementacija Univerzalne State Mašine
+Cilj: Učiniti da gate.c koristi "Profile Kontrole" za donošenje odluka.
+
+2.1. Refaktorisanje Gate_Service():
+
+Glavna logika unutar funkcije više neće imati switch po tipu kapije. Umjesto toga, čitaće handle->config.control_type, pronalaziti odgovarajući deskriptor u g_ControlProfileLibrary i izvršavati logiku definisanu u njemu (npr. provjeravati senzore definisane u profilu).
+
+2.2. Refaktorisanje Akcionih Funkcija (Gate_Trigger...):
+
+Funkcije kao Gate_TriggerSmartStep i Gate_TriggerFullCycleOpen će biti prepravljene. One će iz command_map odabranog profila pročitati koju akciju treba izvršiti (koji relej aktivirati i da li je signal pulsni ili kontinuirani) i pozvati odgovarajuću AddCommand() funkciju.
+
+2.3. Implementacija Pouzdanog Step-by-Step Algoritma:
+
+Implementirati logiku "pošalji puls -> čekaj kratko -> provjeri senzor -> pošalji korektivni puls ako treba" za profile koji se oslanjaju na toggle komande.
+
+2.4. Ažuriranje EEPROM Funkcija:
+
+Prepraviti Gate_Init_Single, Gate_Save_Single i Gate_SetDefault da rade sa novom Gate_EepromConfig_t strukturom.
+
+Faza III: Implementacija Korisničkog Interfejsa (UI)
+Cilj: Kreirati UI za konfiguraciju i kontrolu koji je identičan lights modulu.
+
+3.1. Ekran za Podešavanja (SCREEN_SETTINGS_GATE u display.c):
+
+Implementirati DSP_InitSettingsGateScreen da iscrta fiksni layout sa svim mogućim kontrolama.
+
+Popuniti DROPDOWN za odabir "Profila Kontrole" sa profile_name stringovima iz g_ControlProfileLibrary.
+
+Implementirati logiku koja, nakon odabira profila, čita visible_settings_mask i pomoću SetWidgetState helper funkcije onemogućava i sivi sve nerelevantne kontrole.
+
+Implementirati SPINBOX za odabir izgleda (appearance_id) koji prikazuje preview ikonice i naziva iz gate_appearance_mapping_table.
+
+Implementirati logiku dugog pritiska na preview teksta za unos custom_label preko Display_ShowKeyboard().
+
+3.2. Dashboard Ekran (SCREEN_GATE u display.c):
+
+Prepraviti Service_GateScreen da se ponaša kao Service_LightsScreen. Treba da dinamički iscrtava grid, koristi appearance_id za odabir ikonice i prevedenog naziva, te provjerava custom_label za override.
+
+Kreirati HandlePress_GateScreen za obradu kratkog klika (Gate_TriggerSmartStep) i dugog pritiska (prelazak na SCREEN_GATE_CONTROL_PANEL).
+
+3.3. Kontrolni Panel (SCREEN_GATE_CONTROL_PANEL u display.c):
+
+Dodati SCREEN_GATE_CONTROL_PANEL u eScreen enum (display.h).
+
+Kreirati DSP_InitGateControlPanel koji koristi switch (handle->config.control_type) da dinamički kreira odgovarajući raspored dugmadi (Layout A, B, ili C).
+
+Kreirati Service_GateControlPanel za real-time ažuriranje statusa sa senzora.
+
+Kreirati HandlePress_GateControlPanel za obradu klikova na dugmad i pozivanje odgovarajućih Gate_Trigger... funkcija.
+
+4. Potrebni Grafički Resursi (Ikonice)
+Ovo je konsolidovana lista svih novih ikonica koje trebate obezbijediti, kako je prethodno diskutovano:
+
+Ikonice Tipova i Stanja: Setovi ikonica (Zatvoreno, Otvoreno, Kretanje, Greška) za: Krilnu kapiju, Kliznu kapiju, Garažna vrata, Rampu, i Pametnu bravu.
+
+Ikonice Komandi: Potpuno Otvori, Potpuno Zatvori, Stop, Pješak, Otključaj, Pomjeri Naprijed, Pomjeri Nazad.
+
+5. Kriterijumi za Završetak
+Projekat će se smatrati završenim kada:
+
+Sve stavke iz Faza I, II i III budu implementirane.
+
+Moguće je uspješno konfigurisati i kontrolisati najmanje tri različita profila (npr. BFT Step-by-Step, NICE Pulsni, Pametna Brava) kroz korisnički interfejs.
+
+Korisničko iskustvo za konfiguraciju i kontrolu kapija je identično modulu za svjetla.
+
+Sistem pouzdano čuva i učitava sve nove konfiguracije iz EEPROM-a.
+
+Sve nove tekstualne labele su dodate u translations.h i ispravno se prevode.
+
+
+
+primjer deskriptora:// Unutar gate.c
+static const ProfilDeskriptor_t g_ControlProfileLibrary[] = {
+
+    // Profil 1: BFT Motor sa Step-by-Step i senzorima
+    {
+        .profile_id = CONTROL_TYPE_BFT_STEP_BY_STEP,
+        .profile_name = "BFT S-S",
+        .visible_settings_mask = SETTING_VISIBLE_RELAY_CMD1 | SETTING_VISIBLE_RELAY_CMD2 | 
+                                 SETTING_VISIBLE_FEEDBACK_1 | SETTING_VISIBLE_FEEDBACK_2 | 
+                                 SETTING_VISIBLE_CYCLE_TIMER | SETTING_VISIBLE_PULSE_TIMER,
+        .command_map = {
+            [UI_COMMAND_SMART_STEP] = { .target_relay_index = 1, .is_pulse = true },
+            [UI_COMMAND_PEDESTRIAN] = { .target_relay_index = 2, .is_pulse = true },
+            // Ostale komande nisu direktno mapirane, rješava ih USM
+        }
+    },
+
+    // Profil 2: NICE Motor sa eksplicitnim komandama
+    {
+        .profile_id = CONTROL_TYPE_NICE_SLIDING_PULSE,
+        .profile_name = "NICE Klizna",
+        .visible_settings_mask = SETTING_VISIBLE_RELAY_CMD1 | SETTING_VISIBLE_RELAY_CMD2 |
+                                 SETTING_VISIBLE_FEEDBACK_1 | SETTING_VISIBLE_FEEDBACK_2 |
+                                 SETTING_VISIBLE_CYCLE_TIMER | SETTING_VISIBLE_PULSE_TIMER,
+        .command_map = {
+            [UI_COMMAND_OPEN_CYCLE]  = { .target_relay_index = 1, .is_pulse = true },
+            [UI_COMMAND_CLOSE_CYCLE] = { .target_relay_index = 2, .is_pulse = true },
+        }
+    },
+
+    // Profil 3: Pametna brava
+    {
+        .profile_id = CONTROL_TYPE_SIMPLE_LOCK,
+        .profile_name = "Pametna Brava",
+        .visible_settings_mask = SETTING_VISIBLE_RELAY_CMD1 | SETTING_VISIBLE_FEEDBACK_2 | 
+                                 SETTING_VISIBLE_PULSE_TIMER,
+        .command_map = {
+            [UI_COMMAND_UNLOCK] = { .target_relay_index = 1, .is_pulse = true },
+        }
+    },
+    
+    // Ovdje se jednostavno dodaju novi profili bez izmjene koda...
+};
+
+način realizacije projekta:
+
+gemini će kreirati inicijalizacijsku funkciju settings screen 8 kao i kill funkciju za isti ekran 
+na potpuno isti način kako je to urađeno za ekran podešavanje svjetala i na potpuno isti način će
+servisirat taj ekran, MORA koristit isti layout bez ikakvih izmjena kao ekran za podešavanje svjetala
+mora sve spinboksove na isti način inicijalizovat i neće ispustit niti jednu liniju koda za podešavanje
+spinboksova, neće koristi ediboksove niti buttone jer je gemini nesposoban provjereno da implementira 
+takav interfejs i  neće ni pokušati da realizuje na taj način NEGO ISKLJUČIVO NA POTPUNO ISTI NAČIN
+sve apsolutno sve će realizovati na način kako su to napravljeni inicijalizacija i servisiranje ekrana.
+Za ekran podešavanja GATE mora biti kreirana const struktura sa apsolutno svim elementima layouta
+ pozicije prve kolone druge kolone prvi red razmak između spinboxova offset koliko je tekst label 
+pomjeren desno od spinboksa....
+APSOLUTNO će primjeniti iste pozicije i iste veličine dva dugmeta next i ok
+mora obezbjedit potpuo isti pregled ikonice za kapiju sa pripadajućim tekstom iz prevoda
+Gemini NE SMIJE izmišljati ni jedan elemenat layouta po svom nahođenju nego potpuno isti kao u ekranu za 
+podešavanje svjetala, mora obratiti pažnju koliko može stati kontrola u jednu kolonu bez da spinbox "propadne"
+ispod donje ivice ekrana dakle potpuno isto kao light settings screen.
+Implementirati na potpuno isti način layout za odabir GATE uređaja kao što je to u light select ekranu POTPUNO isto
+
+MORAŠ APSOLUTNO SVE KORISTITI NA ISTI NAČIN KAO I ekrani za svjetla neću nikakav novi inovativni GLUPI princip jer 
+si nesposoban za tako nešto APSOLUTNO prekopiraj cijelu arhitektru kao svjetla jer taj princip radi odlično i nema 
+potrebe da izmišljaš ni jednu liniju koda na neki drugi način apsolutno prekopiraj sve načine na koje se poravnava 
+tekst inicijalizuju spin boksovi i ne propusti ništa nema veze da li tebi izgleda suvišno ili ne ti si nesposoban 
+da prepoznaš šta treba a šta ne treba dakle samo kopiraj 100% cijelu arhitekturu i zamjeni jedne uređaje drugima
+
+obavezno koristiti sledeće ikone za kapije kliznu i krilnu:
+zatvaranje do kraja (pulsna komanda) icons_button_fast_reverse_50_squared 
+ručno pomjeranje u smjeru zatvaranje (kontinuirana komanda) icons_button_left_50_squared
+stop icons_button_cancel_50_squared
+ručno pomjeranje u smjeru otvaranje (kontinuirana komanda) icons_button_right_50_squared
+otvaranje do kraja (pulsna komanda) icons_button_fast_forward_50_squared
+otvaranje za pješaka (pulsna komanda)  icons_button_up_50_squared
+ova kontrola ima kontinuiranu i pulsnu komandu samo ako je tako definisano ProfilDeskriptor_t
+a može i da ima samo pulsne ili samo kontinuirane 
+
+
+obavezno koristiti sledeće ikone za  garažna vrata i rampe
+zatvaranje do kraja icons_button_down_50_squared 
+otvaranje do kraja  icons_button_up_50_squared
+garažna vrata nemaju kontrolu otvarana za pješaka niti ručno pomjeranje kao ni stop 
+
+obavezno koristiti sledeće ikone za jednokrilne pješačke kapije i sigurnosna vrata
+otključaj (pulsna komanda) icons_button_up_50_squared 
+jednokrilne pješačke kapije i sigurnosna vrata imaju samo dugme otključaj 
+
+
+opis uređaja: klizna i krilna kapija
+-može ali ne mora da ima definisane adrese digitalnih ulaza na busu za dva senzora krajnje pozicije otvoreno/zatvoreno
+-može ali ne mora da ima definisanu adresu digitalnog ulaza na busu za senzor kretanja kapije (flash lampa) ovaj ulaz može da pulsira
+tako da treba uzeti prvu promjenu stanja ovog ulaza kao početak kretanja i koristiti ili promjenu stanja krajnjeg senzora ili timeout
+posebnog timera koji mjeri vrijeme od poslednje promjene stanja ovog ulaza, ovaj timer bi trebao biti reda 2-3 sekunce jer flash
+lampa ima ratu promjene odprilike 1s 
+-mora imati podesiv timeout za timer operacije, ovaj timer se u slučaju da kapija nema definisan nikakav feedback senzor krajnje 
+pozicije koristi kao pretpostvaka završene operacije, dakle ako je pokrenuta kapija sa StepByStep komandom tek nakon ovog timmera
+smatra se da je kapija ili otvorena ili zatvorena
+-mora imati definisanu barem jednu adresu za komandu za pokretanje kapije, dakle ako je samo jedna adresa onda je to step-by-step 
+-može da ima definisanu jednu adresu za komandu otvori, ako je definisana ovakva konfiguracija onda ovakav tip kapije mora implementirati
+složenu komandu zatvori na način da uvijek ovu komandu izvrši kao prvo komandu otvori zatim ovisno o tome da li je definisan feedback senzor
+krajnje pozicije otvoreno ili ne završi tu operaciju ili prema senzoru ili prema timeru operacije pa poslije toga pokrene operaciju
+zatvori, na taj način imamo potpunu kontrolu nad pozicijom kapije, ovakav tip upravljanja omogućava sve 4 vrste ikonica na GUI-uključujući
+-može da ima definisanu jednu adresu za komandu zatvori kada je logika suprotna od prethodne
+-može da ima definisane dvije adrese za tačan smjer kapije ovaranje i zatvareanje, u ovom slučaju nema komande step-by-step ali ovaj
+tip komande može da bude pulsni tip kada je komanda otvori i zatvori do kraja ili može da bude tip komande kontinuiranog upravljanja
+kada pomjeranje traje dok traje i signal u kojem slučaju bi se operacija otvaranja ili zatvaranja izvršavala ako je definisana adresa krajnjeg
+senzora do promjene stanja tog senzora ili timeouta timera operacije ili samo timeouta timera ako nema definisanih adresa krajnjih senzora ili 
+ukoliko je definisana feedback adresa kretanja sa flash lampe onda do isteka  timeout posebnog timera koji mjeri vrijeme od poslednje promjene 
+stanja ovog ulaza, ovaj timer bi trebao biti reda 2-3 sekunce jer flash lampa ima ratu promjene odprilike 1s ili isteka glavnog timeout timera operacije
+-može da ima definisanu adresu za komandu samo za pješački prolaz dakle samo iz pozicije zatvoreno treba da je omogućena ova komada na GUI-ju
+kada je aktivan ekran za kontrolu ovog uređaja koji ima definisanu adreesu komande za pješački prolaz
+
+opis uređaja: pješačka kapija i sigurnosna vrata 
+-mora da ima definisanu adresu za komandu i mora da ima definisan timeout timer za ovu komandu dakle koliko dugo traje komanda brave
+i za definisanje ovog vremena će se koristi spinboks kojim bi se definisalo vrijeme pulsne komade u kliznoj kapiji, ovo vrijeme neka 
+bude za obadvije komande podesivo od 0-50 u sekundama što direktno može definisati i tip komande za kapije jer ako je podešeno vrijeme 
+onda je tip komande pulsno, ali za tip pješačka kapija i sigurnosna vrata  ovo vrijeme mora biti podešeno >0, gemini neka odluči šta je
+najpametniji izbor da li da se u deskriptoru opiše uređaj eksplicitno kao pulsni što bi najvjerovatnije bilo najbolje da se sve detaljno uključujući
+deskriptoru objasni state mašini sa čime radi
+-može da ima definisanu adresu feedback senzora zatvorene kapije i u ovom slučaju timer operacije koji se koristi kod kontrole 
+klizna, krilne kapije ili rampa i garažnih vrata postaje timeout timer za zatvaranje vrata dakle ako istekne ovaj timer i u tom 
+roku nije stigao na busu paket sa stanjem ovog senzora kao zatvoreno onda se eksplicitno provjerava stanje senzora i ako potvrđeno 
+senzor nije u stanju zatvoreno ili imamo grešku senzora onda objavljujemo grešku na GUI za tu kapiju ili vrata
+
+opis uređaja:rampa i garažna vrata
+-može ali ne mora da ima definisane adrese digitalnih ulaza na busu za dva senzora krajnje pozicije otvoreno/zatvoreno
+-može ali ne mora da ima definisanu adresu digitalnog ulaza na busu za senzor kretanja kapije (flash lampa) ovaj ulaz može da pulsira
+tako da treba uzeti prvu promjenu stanja ovog ulaza kao početak kretanja i koristiti ili promjenu stanja krajnjeg senzora ili timeout
+posebnog timera koji mjeri vrijeme od poslednje promjene stanja ovog ulaza, ovaj timer bi trebao biti reda 2-3 sekunce jer flash
+lampa ima ratu promjene odprilike 1s 
+-mora imati podesiv timeout za timer operacije, ovaj timer se u slučaju da rampa ili garažna vrata nemaju definisan nikakav feedback 
+senzor krajnje pozicije koristi kao pretpostavaka završene operacije, dakle ako je pokrenuta kapija sa StepByStep komandom tek nakon 
+ovog timmera smatra se da su rampa ili garažna vrata ili otvorena ili zatvorena
+-ovaj uređaj nema pješački prolaz
+
+svaki od prethodno opisanih uređaja ako ne prati logiku koju ćemo nazvati kao model prema konfiguraciji za ovaj uređaj, za taj uređaj 
+ćemo objaviti grešku na gui-u kao ekran nultog prioriteta koji sadži tekst opisa tog uređaja i jasno naznačen opis greške npr. 
+ !!! GREŠKA !!! Kapija-SJEVER nije zatvorena na vrijeme.  dodirom na ekran ovaj uređaj se resetuje u stanje otvoreno ili ako uređaj ima 
+ stanje i ikonu parcijalno_otvoreno
+ 
+ 
+da li si ti razumio iz plana kada tačno da koristiš senzore samo kada su deinisane adrese tih senzora i da je timer operacije uvijek i 
+uvijek krajnji "sudija" ono što obavezno moraš immplementirati na frontendu jesta da u ekranu SCREEN_GATE kratki dodir na bilo koju ikonicu
+uređaja iz ove kategorije gate.c MORA APSOLUTNO MORA raditi toggle opciju kao i svjetlo dakle odmah bez ikakvog odlaganja ikona otvoreno
+postaje zatvoreno i obratno ili ako ima definisan feedback za kretanje onda ikona postaje kretanje , vrata od zatvorenih postaju otvorena i obratno 
+ne smije biti nikakvog drugog ponašanja, druga je stvar šta se backendu dešava i šta će se desiti sa uređajem da li će dospjeti u poziciju 
+ili ne i da li će se pojaviti greška ali na ovom ekranu uređaji moraju biti responzivni istog momenta, a na duži dodir kada se pojavi ekran 
+za potpunu kontrolu uređaja također bi trebalo da dodir svakog dugmeta z akontrolu proizvodi zvučni klik i da imamo promjenu ikonice istog trena

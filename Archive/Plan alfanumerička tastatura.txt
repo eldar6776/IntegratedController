@@ -1,0 +1,66 @@
+U redu. Na osnovu Vašeg pitanja i cjelokupne analize koju smo proveli, sastavio sam zbirni izvještaj i detaljnu listu zadataka za implementaciju, tačno prema Vašim zahtjevima.
+
+Zbirni Izvještaj i Cilj Zadatka
+Početno Pitanje: Dovršiti funkcionalnost izmjene naziva particija i sistema u ekranu za podešavanje alarma.
+Utvrđeni Problemi i Zahtjevi:
+
+Greška sa Jezikom: Tastatura se ne iscrtava sa bosanskim (BSHC) rasporedom tastera i ne prikazuje karaktere š, đ, č, ć, ž.
+
+Greška Ponašanja Unosa: Početni tekst (npr. "Naziv Sistema") se ne briše automatski kada korisnik počne unositi novi naziv.
+
+Greška "OK" Dugmeta: Postoji fundamentalna greška u logici koja sprečava ispravno snimanje i napuštanje ekrana tastature nakon pritiska na "OK".
+
+Novi Zahtjev: Implementirati funkcionalnost kontinuiranog brisanja karaktera držanjem ("dugim pritiskom") na "DEL" taster.
+
+Glavni Cilj: Implementirati sve potrebne izmjene kako bi se gore navedeni problemi riješili i nova funkcionalnost dodala, uz striktno poštovanje pravila da se ne ošteti postojeći kod i da svaka izmjena bude jasno i precizno označena komentarima.
+
+Lista Zadataka za Implementaciju
+Slijedi redoslijed koraka implementacije, od rješavanja fundamentalnih grešaka do dodavanja novih funkcionalnosti.
+
+Zadatak 1: Refaktorisanje Logike "OK" Dugmeta i Ispravka Greške
+Ovo je prioritetni zadatak jer rješava osnovni problem u protoku programa i uspostavlja ispravan i konzistentan obrazac rada.
+
+1.1. (Izmjena u display.c): U funkciji Service_KeyboardScreen, unutar case GUI_ID_OKAY:, ukloniti kompletan if (keyboard_return_screen == SCREEN_SETTINGS_ALARM) blok. Logika "OK" dugmeta mora postati generička: njen jedini zadatak je da kopira finalni tekst u g_keyboard_result, postavi fleg is_confirmed = true i pokrene povratak na prethodni ekran.
+
+1.2. (Izmjena u display.c): Na početak funkcije Service_SettingsAlarmScreen, dodati novi blok koda koji provjerava if (g_keyboard_result.is_confirmed). Unutar ovog bloka:
+
+Implementirati logiku koja na osnovu selected_partition_for_rename fleg-a poziva Security_SetSystemName() ili Security_SetPartitionName().
+
+Pozvati Security_Save() da snimi promjene u EEPROM.
+
+Obavezno resetovati fleg g_keyboard_result.is_confirmed = false; kako bi se spriječilo ponovno izvršavanje.
+
+Zadatak 2: Ispravka Prikaza Bosanskih Karaktera (Font)
+Ovaj zadatak rješava vizuelni problem sa prikazom specijalnih karaktera.
+
+2.1. (Izmjena u display.c): U funkciji DSP_InitKeyboardScreen, pronaći liniju koda:
+BUTTON_SetFont(hKeyboardButtons[index], &GUI_Font20_1);
+
+2.2. (Izmjena u display.c): Promijeniti tu liniju tako da koristi font koji podržava prošireni latinični set, a koji se već koristi u drugim dijelovima aplikacije:
+BUTTON_SetFont(hKeyboardButtons[index], &GUI_FontVerdana20_LAT);
+
+Zadatak 3: Implementacija Brisanja Početnog Teksta pri Unosu
+Ovaj zadatak implementira željeno ponašanje polja za unos.
+
+3.1. (Izmjena u display.h): Proširiti KeyboardContext_t strukturu dodavanjem novog člana: bool clear_on_first_input;.
+
+3.2. (Izmjena u display.c): U funkciji Service_SettingsAlarmScreen, prilikom kreiranja kbd_context objekta za poziv tastature, postaviti novu vrijednost clear_on_first_input = true;.
+
+3.3. (Izmjena u display.c): U funkciji Service_KeyboardScreen, na početku bloka koji obrađuje unos karaktera, dodati if uslov koji provjerava da li je potrebno obrisati bafer (keyboard_buffer), te ako jeste, obrisati ga i resetovati fleg. (Ovo podrazumijeva i uvođenje potrebne statičke varijable).
+
+Zadatak 4: Implementacija Dugog Pritiska na "DEL" Taster
+Ovaj zadatak dodaje novu, odobrenu funkcionalnost.
+
+4.1. (Izmjena u display.c): Definisati nove statičke varijable za praćenje vremena pritiska (del_key_press_time, del_key_next_trigger_time) i konstante za trajanje inicijalnog kašnjenja (KEY_PRESS_INITIAL_DELAY) i brzinu ponavljanja (KEY_PRESS_REPEAT_RATE).
+
+4.2. (Izmjena u display.c): U funkciji Service_KeyboardScreen dodati novi, nezavisni blok logike koji:
+
+Provjerava da li je "DEL" taster trenutno pritisnut.
+
+Koristi HAL_GetTick() za praćenje vremena.
+
+Nakon inicijalnog kašnjenja, periodično briše po jedan karakter iz keyboard_buffer-a i ažurira prikaz na ekranu.
+
+Resetuje tajmere kada taster bude otpušten.
+
+Svaki od ovih koraka će biti implementiran uz striktno poštovanje pravila o komentarisanju izmjena.

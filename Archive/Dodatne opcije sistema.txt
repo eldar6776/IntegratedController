@@ -1,0 +1,109 @@
+Finalni Plan Projekta v3.0: Refaktorisanje Alarma i Implementacija Dinamičkog Jezika
+Autor: Gemini
+Datum: 6. oktobar 2025.
+Glavni Ciljevi:
+
+Alarmni Modul: Implementirati siguran, trostupanjski proces za promjenu glavnog PIN-a i omogućiti korisničko imenovanje particija.
+
+Konzistentnost UI/UX: Unificirati pristup podešavanjima (dugi pritisak) za module ALARM i TIMER.
+
+Dinamički Jezik: Implementirati punu funkcionalnost za MODE_LANGUAGE na obje dinamičke ikonice (SelectScreen1 i SelectScreen2), sa razdvojenom logikom za kratki i dugi pritisak.
+
+Internacionalizacija (i18n): Osigurati da je sav novi korisnički interfejs u potpunosti višejezičan.
+
+Faza 1: Proširenje Backend-a (BEZ IZMJENA)
+Ova faza ostaje nepromijenjena i predstavlja osnovu za sve ostalo.
+
+Zadatak 1.1: Modifikacija Security_Settings_t strukture u security.h (dodavanje polja za nazive).
+
+Zadatak 1.2: Ažuriranje security.c (SetDefault, dodavanje gettera/settera za nazive).
+
+Zadatak 1.3: Adaptacija Security_ValidateUserCode u security.c da koristi jedan globalni system_pin.
+
+Faza 1.5: Priprema za Internacionalizaciju (i18n)
+Zadatak 1.5.1: Proširenje TextID enuma u display.h sa svim potrebnim novim stringovima za alarm, promjenu PIN-a i odabir jezika (npr. TXT_SELECT_SYSTEM_LANGUAGE).
+
+Zadatak 1.5.2: Proširenje language_strings tabele u translations.h sa prevodima za sve nove TextID-jeve.
+
+Faza 2: Implementacija UI za Podešavanje Alarma (BEZ IZMJENA)
+Ova faza ostaje ista, fokusirana isključivo na kreiranje novog ekrana SCREEN_SETTINGS_ALARM i implementaciju logike za promjenu PIN-a i naziva, kako je prethodno definisano.
+
+Faza 3: Refaktorisanje Navigacije i Implementacija Dinamičkog Jezika
+Ova faza je sada proširena da obuhvati oba "Select" ekrana.
+
+Zadatak 3.1: Implementacija dugog pritiska za ALARM i TIMER.
+
+Fajl: display.c
+
+Akcija: U HandlePress_SelectScreen2, implementirati logiku za dugi pritisak na ikonice ALARM i TIMER za ulazak u SCREEN_SETTINGS_ALARM i SCREEN_SETTINGS_TIMER.
+
+Zadatak 3.2: Uklanjanje "Settings" ikonice sa TIMER ekrana.
+
+Fajl: display.c
+
+Akcija: Izbrisati kod za kreiranje i obradu "Settings" dugmeta sa ekrana SCREEN_TIMER.
+
+Zadatak 3.3 (NOVO): Implementacija logike za MODE_LANGUAGE na oba ekrana.
+
+Fajlovi: display.c
+
+Akcije:
+
+Detekcija pritiska:
+
+U HandlePress_SelectScreen1, ako je g_display_settings.selected_control_mode == MODE_LANGUAGE, pokrenuti tajmer dynamic_icon1_press_timer.
+
+U HandlePress_SelectScreen2, ako je g_display_settings.selected_control_mode_2 == MODE_LANGUAGE, pokrenuti tajmer dynamic_icon2_press_timer.
+
+Obrada kratkog klika (Lokalna promjena):
+
+U HandleTouchReleaseEvent, provjeriti da li je istekao tajmer za dynamic_icon1 ili dynamic_icon2.
+
+Ako nije (bio je kratak klik), izvršiti logiku za promjenu jezika: g_display_settings.language = (g_display_settings.language + 1) % LANGUAGE_COUNT;, pozvati Display_Save() i postaviti shouldDrawScreen = 1;.
+
+Obrada dugog klika (Sistemska promjena):
+
+U Handle_PeriodicEvents, provjeriti oba tajmera (dynamic_icon1_press_timer i dynamic_icon2_press_timer).
+
+Ako je bilo koji od njih istekao, resetovati ga i izvršiti tranziciju na novi ekran SCREEN_LANGUAGE_SELECT. Važno: scene_picker_return_screen će biti postavljen na SCREEN_SELECT_1 ili SCREEN_SELECT_2 zavisno od toga koji je tajmer istekao.
+
+Zadatak 3.4 (NOVO): Kreiranje ekrana SCREEN_LANGUAGE_SELECT.
+
+Fajl: display.c
+
+Akcije:
+
+Dodati SCREEN_LANGUAGE_SELECT u eScreen enum (već postoji, samo potvrditi).
+
+Kreirati DSP_InitLanguageSelectScreen, DSP_KillLanguageSelectScreen i Service_LanguageSelectScreen.
+
+U Init funkciji iscrtati naslov lng(TXT_SELECT_SYSTEM_LANGUAGE) i 11 zastava (u rasporedu 5 + 6).
+
+U Service funkciji, na klik bilo koje zastave, uzeti njen indeks, formirati LANGUAGE_SET komandu i poslati je na bus kao broadcast poruku. Nakon slanja, vratiti se na prethodni "Select" ekran.
+
+Zadatak 3.5 (NOVO): Kreiranje listenera za sistemsku promjenu jezika.
+
+Fajlovi: LuxNET.h, rs485.c
+
+Akcije:
+
+Dodati LANGUAGE_SET = 56 u tf_types_t enum u LuxNET.h.
+
+U rs485.c, kreirati LANGUAGE_SET_Listener koji će pročitati novi indeks jezika iz poruke, ažurirati g_display_settings.language, pozvati Display_Save() i forsirati ponovno iscrtavanje interfejsa pozivom screen = SCREEN_RETURN_TO_FIRST;.
+
+Registrovati novi listener u RS485_Init().
+
+Zadatak 3.6: Ažuriranje SCREEN_SECURITY za prikaz novih naziva.
+
+Fajl: display.c
+
+Akcija: Kao što je planirano, Service_SecurityScreen će koristiti getter funkcije za dinamički prikaz naziva, sa "fallback" logikom na prevedene defaultne nazive.
+
+Moj Sljedeći Korak (početak nove sesije):
+Redoslijed ostaje isti jer su faze logički zavisne:
+
+Faza 1: Prvo pripremam backend (security.h, security.c).
+
+Faza 1.5: Zatim pripremam tekstualne resurse (display.h, translations.h).
+
+Faza 2 i 3: Na kraju, implementiram sve UI izmjene u display.c i komunikaciju u rs485.c, sada sa punom sviješću da MODE_LANGUAGE funkcionalnost mora raditi simetrično na oba Select ekrana.

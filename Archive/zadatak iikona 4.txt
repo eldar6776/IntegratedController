@@ -1,0 +1,45 @@
+sada mi treba prijedlog kako da najbolje uredimo dvije ikonice na select ekranima 1 i 2,  na ekranu u Service_SelectScreen1 imamo dinamičku ikonicu broj 4, takav potpuno isti 
+princip ćemo preslikat i na Service_SelectScreen2 identičan 1:1 bez ikakvh izmišljanja, za ove dvije ikonice ćemo DROPDOWN_GetSel(hSelectControl_4); iz Service_SettingsScreen_3 
+promjestiti u DSP_InitSet6Scrn i sve obrade promjena u Service_SettingsScreen_6 na potpuno isti način da ako se promjeni odabir u dropdown listi ponovo crtamo ekran, a pored ovog 
+ćemo dodati još jedan DROPDOWN_GetSel(hSelect2Control_4); tako da sada imamo dva dropdown menija za odabir dvije ikonice broj 4 na select screen 1 i 2, ove dvije liste ikonica 
+sadrže identične liste ali na način da je u listi izbačena tema koja je selektovana u drugon dropdown time sprječavamo da se odaberu dvije iste ikone na dva ekrana, ako nije 
+odabrana ikona u dropdown onda taj select ekran ima jednu manje ikonu kao i do sada što je radio select ekran 1 dakle tu se ništa ne mjenja a potpuno isti princip ćemo sada 
+primjeniti na ekran 2, lista funkcija će sadržavati:
+
+LAGUAGE, 
+THEME, 
+SOS, 
+ALL OFF, 
+OUTDOOR, 
+DEFROSTER,
+VENTILATOR
+
+nesmiješ ubacivati apsolutno nikakve novine i neke nove načine kodiranja apsolutno sve prekoporaj iz Service_SelectScreen1 i HandlePress_SelectScreen1 
+apsolutno sve moraš kopirati kako je u ove dvije funkcije korišteno i primjenit na Service_SelectScreen2 HandlePress_SelectScreen2 da i ovaj ekran sada koristi potpuno 
+isti ali baš potpuno isti način transformacije ekrana i popunjavanja ikona i obrade dodira ne smiješ ništa drugačije implemetirati i uvoditi nikakve nove funkcije
+
+princip rada ovih novih kontrola je sledeći
+
+DEFROSTER - radi potpuno isto kao i do sada mora ostati sve funkcionalno tačno kao što to radi sada i ne smije se ni jedna linija
+koda promjeniti u vezi ove kontrole u backendu
+VENTILATOR - radi potpuno isto kao i do sada mora ostati sve funkcionalno tačno kao što to radi sada i ne smije se ni jedna linija
+koda promjeniti u vezi ove kontrole u backendu
+SOS - treba da proizvodi zvučni klik, samo dummy funkcija ne radi trenutno ništa, služiće kao aktiviranje silent alarma dužim dodirom samo 
+ako je konfigurisan alarm dakle ova kontrola se pojavljuje u odabiru samo ako je konfigurisan alarm modul i ako je u Service_SelectScreen2 
+omogućena ikona za modul SECURITY
+THEME - ova kontrola reaguje samo na duži pritisak i radiće tako da se pokrne novi ekran za odabir 10 - 15 ikonica 50x50 u dva ili tri reda
+što ćemo naknadno utvrditi a koje će predstavljati skinove interfejsa dakle svaka ikonica će predstavljati jedan način izgleda
+i dodirno na jednu od njih cijeli interfejs će koristiti taj set ikona za dugmad, ovo je dakle budući dizajn i sada samo treba 
+obezbjediti prazan ekran sa hamburger menijem i tekstom "SKIN" ili slično, ovaj odabir ćemo kasnije napraviti kao propagirajući na nivou busa tako da svi uređaji u busu promjene 
+jezik interfejsa, na ovaj način možemo jedan od displeja konfigurisati za promjene sistema
+ALL OFF - jeste samo ikonica - dugme za aktiviranje off komande na odabrane adrese, treba da proizvodi zvučni klik,  za ovu kontrolu ćemo dodati 
+još jedan settings ekran za podešavanje adresa na koje ćemo slati ove komande, ovo je druga vrsta kontrole kao scena odlazak ali eksplicitni samo gašenje uređaja
+OUTDOOR - kao i ventilator ili defroster na frontendu ovo je ikona on/off i služi za vanjsku rasvjetu, kratki klik na ikonu radi toggle vanjske rasvjete
+duži dodir na ikonicu pokreće novi ekran potpuno isti kopirani ekran timera sa kontrolom timer uključen isključen koji također ima settings dugme
+za podešavanje timera dakle i taj settings ekran ćemo kopirati ali ovaj timer je samo za  vanjsku rasvjetu, za ovu kontrolu ćemo dodati još jedan
+setting ekran koji treba da sadrži do 20 adresa vanjske rasvjete dakle ove adrese treba da mogu biti sva tri tipa komunikacije i binarni i dimmer i rgb
+ali je kontrola ovih svjetala samo on/off kontrola dakle šaljemo samo on/off na njih bez svjetloće ili rgb nijansi
+LAGUAGE - je ikona za odabir jezika interfejsa, ova kontrola postoji i u DSP_InitSet6Scrn kao hDRPDN_Language i potpuno je ista funkcija samo
+što je ovdje ponuđena korisniku, reaguje samo na duži dodir i pokreće novi ekran sa poredanim ikoicama (zastavama) gdje se odabirom na jednu
+mijenja kompletan jezik interfejsa, ovaj odabir ćemo kasnije napraviti kao propagirajući na nivou busa tako da svi uređaji u busu promjene 
+jezik interfejsa, na ovaj način možemo jedan od displeja konfigurisati za promjene sistema

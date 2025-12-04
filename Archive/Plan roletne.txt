@@ -1,0 +1,78 @@
+Izvanredno pitanje! Potpuno ste u pravu, to je ključni detalj koji moramo riješiti kako bi interfejs bio logičan i bez nejasnoća. Šta prikazati i kako kontrolisati grupu "SVE ROLETNE" kada pojedinačne roletne imaju različita ili suprotna stanja je klasičan UX (User Experience) izazov.
+
+Vaša ideja o posebnoj zoni za animaciju koja prikazuje mješovito kretanje je odlična. Hajde da je integrišemo u finalni, robustan dizajn koji rješava sve ove slučajeve.
+
+Koncept: Eksplicitne Komande za Grupu, Jasan Status za Pojedinačne
+Osnovni princip će biti:
+
+Kada upravljamo pojedinačnom roletnom, interfejs je jednostavan i direktan.
+
+Kada upravljamo grupom "SVE ROLETNE", interfejs mora jasno komunicirati da će komanda biti poslata svima, bez obzira na njihovo trenutno stanje, i mora moći prikazati kompleksan status.
+
+Revidirani Dizajn Ekrana za Roletne
+Zadržavamo raspored koji smo zadnje dogovorili, ali ga sada usavršavamo sa ovom novom logikom.
+
+1. Panel za Pojedinačnu Roletnu (npr. "Dnevna Soba")
+Ovaj panel ostaje uglavnom isti, ali sa jasnijim prikazom statusa.
+
+Zaglavlje: Naziv "Dnevna Soba".
+
+Centralni Prikaz Statusa: Ovdje sada imamo samo ikonicu koja vizuelno prikazuje posljednje poznato (pretpostavljeno) stanje:
+
+Ikonica "Otvorena": Prikazuje se samo ako je roletna završila puni ciklus otvaranja.
+
+Ikonica "Zatvorena": Prikazuje se samo ako je roletna završila puni ciklus zatvaranja.
+
+Ikonica "Poluotvorena/Nepoznato": Prikazuje se u svim ostalim slučajevima (ako je zaustavljena na pola, nakon restarta, itd.). Ovo je "pošten" prikaz koji korisniku govori da sistem nije 100% siguran u poziciju.
+
+Animacija Kretanja: Dok se roletna kreće, ova ikonica se može animirati (npr. linije se pomiču gore/dole).
+
+Kontrole: Dva velika, stilizovana dugmeta [ GORE ▲ ] i [ DOLE ▼ ].
+
+2. Panel za "SVE ROLETNE" (Ključna Izmjena)
+Ovaj panel dobija poseban dizajn kako bi riješio problem mješovitog stanja.
+
+Zaglavlje: Naziv "SVE ROLETNE".
+
+Centralni Prikaz Statusa:
+
+Glavna Ikonica: Prikazuje zbirni status svih roletni, kako ste i predložili:
+
+Ikonica "Otvorena": Prikazuje se samo ako su SVE roletne u stanju "Otvorena".
+
+Ikonica "Zatvorena": Prikazuje se samo ako su SVE roletne u stanju "Zatvorena".
+
+Ikonica "Poluotvorena/Mješovito": Prikazuje se u svim ostalim slučajevima (ako je bar jedna na pola, ili su neke gore a neke dole).
+
+Namjenski Indikator Kretanja (Vaša ideja):
+
+Pored ili ispod glavne ikonice, dodajemo malu zonu koja je vidljiva samo dok se roletne kreću.
+
+U ovoj zoni će se prikazivati animacija koja oslikava zbirno kretanje:
+
+>>>>>>>>: Animacija strelica ide samo nagore (sve aktivne roletne se podižu).
+
+<<<<<<<<: Animacija strelica ide samo nadole (sve aktivne roletne se spuštaju).
+
+<<<-->>>: Animacija gdje neke strelice idu nagore, a neke nadole, jasno indicirajući mješovito kretanje.
+
+Kontrole:
+
+Dva velika dugmeta [ GORE ▲ ] i [ DOLE ▼ ].
+
+Ključna logika: Za razliku od pojedinačne kontrole, ova dugmad nisu "toggle". Ona šalju eksplicitnu komandu:
+
+Pritiskom na [ GORE ▲ ] šalje se komanda "Kreni Gore" SVIM roletnama, bez obzira na njihovo trenutno stanje. One koje su već gore neće uraditi ništa, one koje su dole ili na pola će se početi podizati.
+
+Pritiskom na [ DOLE ▼ ] šalje se komanda "Kreni Dole" SVIM roletnama.
+
+Šta smo ovim postigli?
+Riješen Problem Mješovitog Stanja: Korisnik sada ima jasan vizuelni indikator koji mu pokazuje da li se sve roletne kreću u istom ili različitim smjerovima.
+
+Intuitivna Grupna Kontrola: Komande za "SVE ROLETNE" su sada jasne i predvidljive. Pritiskom na "GORE" korisnik zna da će se sve što može podići – podići. Nema više nagađanja šta će "toggle" uraditi.
+
+"Pošten" Prikaz Statusa: Sistem nikada ne laže. Ako nije siguran u poziciju pojedinačne roletne, prikazuje ikonicu "nepoznato". Za grupnu kontrolu, prikazuje zbirni status koji je uvijek tačan.
+
+Zadržana Jednostavnost: Korisnik i dalje ima samo dva glavna dugmeta za interakciju, što je brzo i efikasno.
+
+Ovaj pristup kombinuje najbolje od Vaših ideja i rješava logičke probleme koji nastaju zbog nedostatka senzora, pružajući korisniku interfejs koji je istovremeno moćan, lijep i lak za razumijevanje.

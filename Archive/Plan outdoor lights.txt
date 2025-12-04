@@ -1,0 +1,244 @@
+potrebno je kreirati sledeći po redu numerisani ekran za poddešavanje dakle 10
+u ovom ekranu treba obezbjediti podešavanje 20 adresa svjetala bilo kojeg tipa
+sva ova svjetla će se uključivati i isključivati isključivo sa on/off kontrolom bez rgb ili brightnes
+ovu listu adresiranih svjetala će dijeliti 2 ikonnice tako da ako je odabrana jedna od njih druga je 
+automatski nedostupna, podešavanje treba da sadrži spinbox za odabir memorisanih članova liste,
+spin box za odabir adrese, spin box za odabir tipa komunikacije binarni,dimmer,rgb, dugme dodaj dugme obriši
+i tekstualni prikaz liste u kojoj se vide sve adrese konfigurisanih adresa svjetala dakle ako se 
+u settings meniju u jednom od dva dropdown boxa za odabir četvrte ikonice u selekt ekranu 1 ili 2 odabere
+ALL OFF tip onda je OUTDOOR nedostupna u drugom odabiru i obratno jer ove kontrole dijele istu listu
+razlika je u tome što dodir na ikonicu u select meniju 1 ili 2 ako je odabrana ALL OFF kontrola samo
+proizvodi klik i šalje komandu isključi na sva konfigurisana svjetla, a ako je odabrana ikonica OUTDOOR
+kratki klik proizvodi toggle ponašanje on/off/on kao ventilator ili defroster a duži klik otvara ekran
+identičan kao timer gdje se sada vide dva vremena sata i minute uključenja i isključenja kao i odabrani dani
+i identično dugme uključi/isključi i također identično dugme settings dole desno, klik na dugme settings vodi
+na sledeći ekran gdje podešavamo timer, interface je skoro identičan s tim da ovdje nema dugmeta za buzzer nema
+dugmeta za uključenje scene kao ni dugmeta za odabir scene, sva dugmad za odabir dana će biti u donjem redu gdje
+su bila ova dugmad za buzzer i scenu a ispod ispisanog vremena timera će biti sva duža dugmeta na kojima piše
+TIME ON   i dugme TIME OFF, klikom na jedno od dva dugmeta ovo dugme će promjeniti vrijeme timera koji se podešava
+u gornjim kontrolama + - za sate i +- za minute, a oko tog zadnjeg pritisnutog dugmeta ćemo  dodatno nacrtati liniju
+i okružiti dugme linijom kao oznaku da je to selektovano vrijeme koje podešavamo, ostale ikone će biti identične na
+identičnim pozicijama sa identičnim funkcijama. klik na save ili cancel vraća nas na ekran za odabir timer ukljlučen/isključenja
+a na ovom ekranu imamo izalaz sa hamburger menijem u prethodni select ekran, ako nije podešeno sistemsko vrijeme i u ovom
+slučaju umjesto ovog ekrana će nas dočekati identičan isti konfiguracijski ekran sa natpisom "podesite vrijeme"
+
+Projektni Plan: Implementacija Modula 'Outdoor Lights'
+Verzija Plana: 1.0
+Datum: 6. oktobar 2025.
+
+Kratak Opis: Cilj je implementirati novu funkcionalnost za centralizovanu kontrolu do 20 vanjskih ili zajedničkih svjetala. Funkcionalnost se sastoji od dva dijela: "Outdoor Lights" koja omogućava ON/OFF kontrolu sa tajmerom, i "All Off" koja služi kao brza komanda za gašenje svih svjetala sa te liste. Modul mora biti integrisan u postojeći UI, sistem scena i perzistentnu memoriju (EEPROM).
+
+Faza 1: Definisanje Struktura Podataka i Resursa
+Ovaj korak je temelj i mora se uraditi prvi kako bi se osigurala konzistentnost.
+
+1.1. Backend Strukture Podataka (Kreiranje outdoor.h)
+
+Struktura za jedno svjetlo: Definisati strukturu OutdoorLight_t koja sadrži adresu i tip komunikacije.
+
+C
+
+// u outdoor.h
+typedef struct {
+    uint16_t address;
+    uint8_t comm_type; // 1=BIN, 2=DIM, 3=RGB
+} OutdoorLight_t;
+Glavna EEPROM Struktura: Definisati Outdoor_EepromConfig_t koja objedinjuje sve podatke za trajnu pohranu.
+
+C
+
+// u outdoor.h
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t magic_number;
+    OutdoorLight_t lights[20];
+    uint8_t lights_count;
+    bool     is_active;      // ON/OFF status tajmera
+    uint8_t  on_hour;
+    uint8_t  on_minute;
+    uint8_t  off_hour;
+    uint8_t  off_minute;
+    uint8_t  repeatMask;     // Bitmaska za dane
+    uint16_t crc;
+} Outdoor_EepromConfig_t;
+#pragma pack(pop)
+1.2. Ažuriranje EEPROM Mape (stm32746g_eeprom.h)
+
+Pronaći posljednji definisani blok u mapi (trenutno EE_GATES ili EE_SECURITY).
+
+Dodati novu definiciju za EE_OUTDOOR i pomjeriti adrese svih narednih blokova, koristeći sizeof().
+
+C
+
+// u stm32746g_eeprom.h
+#define EE_GATES                            (EE_SCENES + sizeof(Scene_EepromBlock_t))
+#define EE_OUTDOOR                          (EE_GATES + (sizeof(Gate_EepromConfig_t) * GATE_MAX_COUNT)) // NOVI BLOK
+#define EE_TIMER                            (EE_OUTDOOR + sizeof(Outdoor_EepromConfig_t)) // Pomjerena adresa
+// ... nastaviti sa pomjeranjem ostalih adresa ...
+1.3. Ažuriranje UI Enumeratora (display.h)
+
+U eScreen enum dodati nove ekrane:
+
+C
+
+// u display.h -> eScreen
+SCREEN_SETTINGS_OUTDOOR,       // Novi ekran 10 za podešavanje liste svjetala
+SCREEN_OUTDOOR_TIMER,          // Ekran za prikaz statusa Outdoor tajmera
+SCREEN_SETTINGS_OUTDOOR_TIMER, // Ekran za podešavanje vremena Outdoor tajmera
+U ControlMode enum dodati nove modove za dinamičku ikonicu:
+
+C
+
+// u display.h -> ControlMode
+MODE_ALL_OFF,
+MODE_OUTDOOR,
+1.4. Ažuriranje Tekstualnih Resursa (translations.h)
+
+U TextID enum dodati nove identifikatore za sve potrebne tekstove:
+
+TXT_OUTDOOR_LIGHTS ("Vanjska Rasvjeta")
+
+TXT_ALL_OFF ("Sve Gasi")
+
+TXT_OUTDOOR_SETTINGS_TITLE ("Podešavanje Vanjske Rasvjete")
+
+TXT_TIME_ON ("VRIJEME UKLJ.")
+
+TXT_TIME_OFF ("VRIJEME ISKLJ.")
+
+...i ostale potrebne labele.
+
+Popuniti prevode za nove TextID-jeve u language_strings tabeli.
+
+1.5. Ažuriranje ID-jeva Widgeta (settings_widgets.def)
+
+Dodati novi, jasno odvojen blok ID-jeva za SCREEN_SETTINGS_OUTDOOR (Ekran 10):
+
+C
+
+// WIDGET(NAZIV, VRIJEDNOST, "KOMENTAR")
+// ...
+// === 0x9E0 - 0x9EF: EKRAN 10 - PODEŠAVANJE VANJSKE RASVJETE ===
+WIDGET( ID_OUTDOOR_ITEM_SELECT,   0x9E0, "Spinbox za odabir stavke (0-19)" )
+WIDGET( ID_OUTDOOR_ADDRESS,       0x9E1, "Spinbox za unos adrese svjetla" )
+WIDGET( ID_OUTDOOR_COMM_TYPE,     0x9E2, "Spinbox za odabir tipa komunikacije" )
+WIDGET( ID_OUTDOOR_ADD_BTN,       0x9E3, "Dugme 'Dodaj/Snimi'" )
+WIDGET( ID_OUTDOOR_DELETE_BTN,    0x9E4, "Dugme 'Obriši'" )
+Dodati ID-jeve za SCREEN_SETTINGS_OUTDOOR_TIMER:
+
+C
+
+// ...
+WIDGET( ID_OUTDOOR_TIMER_ON_BTN,  0x9B1, "Dugme za selekciju 'VRIJEME UKLJ.'" )
+WIDGET( ID_OUTDOOR_TIMER_OFF_BTN, 0x9B2, "Dugme za selekciju 'VRIJEME ISKLJ.'" )
+Faza 2: Implementacija Backend Logike (Modul outdoor)
+2.1. Kreiranje Datoteka: outdoor.h i outdoor.c.
+
+2.2. Implementacija Javnog API-ja (outdoor.h)
+
+Pored definicija struktura, deklarisati sve javne funkcije (Getteri, Setteri, Init, Service, ToggleAll, TurnAllOff).
+
+2.3. Implementacija Privatne Logike (outdoor.c)
+
+Definisati statičku instancu: static Outdoor_EepromConfig_t outdoor_config;.
+
+Outdoor_Init(): Implementirati čitanje sa adrese EE_OUTDOOR, provjeru magic_number i crc. U slučaju greške, pozvati Outdoor_SetDefault() i Outdoor_Save().
+
+Outdoor_Service():
+
+Provjeriti if (!outdoor_config.is_active || !IsRtcTimeValid()) return;.
+
+Koristiti statičku varijablu last_checked_minute da se logika izvršava samo jednom po minuti.
+
+Učitati trenutno vrijeme iz RTC-a.
+
+Provjeriti da li se trenutno vrijeme poklapa sa on_hour/on_minute ili off_hour/off_minute.
+
+Provjeriti repeatMask sa trenutnim danom u sedmici.
+
+Ako se uslovi poklope, pozvati Outdoor_ToggleAll() (za ON) ili Outdoor_TurnAllOff() (za OFF) i postaviti hasTriggeredThisMinute fleg.
+
+Outdoor_TurnAllOff() i Outdoor_ToggleAll():
+
+Outdoor_TurnAllOff() bezuslovno šalje OFF komande.
+
+Outdoor_ToggleAll() koristi statičku bool is_on varijablu da prati trenutno stanje i šalje suprotnu komandu.
+
+Obje funkcije iteriraju od 0 do outdoor_config.lights_count. Za svaku stavku:
+
+Formiraju bafer (uint8_t buff[3]) sa adresom i komandom.
+
+Pozivaju AddCommand() sa odgovarajućim redom (binaryQueue, dimmerQueue) i parametrima.
+
+Faza 3: Implementacija Korisničkog Interfejsa (display modul)
+3.1. Prilagođavanje Select Ekrana (display.c)
+
+Modificirati PopulateControlDropdown(): Prije popunjavanja liste, provjeriti vrijednost u drugom dropdown-u i preskočiti dodavanje međusobno isključive opcije (MODE_OUTDOOR vs MODE_ALL_OFF).
+
+Modificirati Service_SelectScreen1/2(): Proširiti switch ili if-else blok koji bira ikonicu da uključi MODE_OUTDOOR (koristi bmicons_menu_outdoor_lihts_on/off) i MODE_ALL_OFF (bmicons_menu_all_off).
+
+Modificirati HandlePress_SelectScreen1/2(): Dodati obradu za nove modove.
+
+case MODE_ALL_OFF: Kratki klik poziva Outdoor_TurnAllOff(). Nema dugog klika.
+
+case MODE_OUTDOOR: Kratki klik poziva Outdoor_ToggleAll(). Dugi klik postavlja screen = SCREEN_OUTDOOR_TIMER; i shouldDrawScreen = 1;.
+
+3.2. Implementacija Ekrana SCREEN_SETTINGS_OUTDOOR (display.c)
+
+Kreirati DSP_InitSet10Scrn(), DSP_KillSet10Scrn(), i Service_SettingsScreen_10().
+
+U Init, kreirati sve widgete definisane u settings_widgets.def.
+
+U Service, implementirati logiku:
+
+Promjena ID_OUTDOOR_ITEM_SELECT spinboxa povlači podatke za taj indeks i popunjava spinboxe za adresu i tip.
+
+Pritisak na ID_OUTDOOR_ADD_BTN poziva Outdoor_AddLight() i ažurira prikaz liste.
+
+Pritisak na ID_OUTDOOR_DELETE_BTN poziva Outdoor_DeleteLight() i ažurira prikaz liste.
+
+3.3. Implementacija Ekrana SCREEN_OUTDOOR_TIMER (display.c)
+
+Kreirati Init, Kill, Service funkcije kao adaptaciju Service_TimerScreen.
+
+Prikazivati dva vremena (ON i OFF) i status.
+
+Implementirati IsRtcTimeValid() provjeru.
+
+Klik na "Settings" dugme prebacuje na SCREEN_SETTINGS_OUTDOOR_TIMER.
+
+3.4. Implementacija Ekrana SCREEN_SETTINGS_OUTDOOR_TIMER (display.c)
+
+Kreirati Init, Kill, Service funkcije kao adaptaciju Service_SettingsTimerScreen.
+
+U Init izbaciti buzzer/scene dugmad i pomjeriti dugmad za dane (hButtonTimerDay) u donji red. Dodati hButtonTimeOnSelect i hButtonTimeOffSelect.
+
+U Service, uvesti static bool is_on_time_selected;. Klik na hButtonTimeOnSelect postavlja ga na true, a na hButtonTimeOffSelect na false.
+
+Logika za +/- dugmad će provjeravati is_on_time_selected i mijenjati ili ON ili OFF vrijeme u lokalnim varijablama.
+
+Dodati GUI_DrawRect() oko aktivnog dugmeta (ON ili OFF).
+
+Klik na "Save" poziva Outdoor_SetOnTime(), Outdoor_SetOffTime(), Outdoor_Save() itd., te se vraća na SCREEN_OUTDOOR_TIMER.
+
+Faza 4: Sistemska Integracija i Povezivanje
+4.1. Modifikacija main.c
+
+Dodati #include "outdoor.h".
+
+U main() funkciji, pozvati Outdoor_Init().
+
+U while(1) petlji, pozvati Outdoor_Service().
+
+4.2. Povezivanje sa Scenama
+
+scene.h: U Scene_t dodati bool triggers_all_off;.
+
+display.c: Na ekranu SCREEN_SCENE_WIZ_DEVICES, dodati novi checkbox "Pokreni 'Sve Gasi' akciju".
+
+scene.c: U funkciji Scene_Activate(), nakon izvršavanja svih ostalih akcija, dodati:
+
+C
+
+if (scene_handle->triggers_all_off) {
+    Outdoor_TurnAllOff();
+}

@@ -1,0 +1,145 @@
+Finalni Plan Implementacije: Modul "Pametni Alarm"
+1. Uvod i Osnovni Koncept
+Cilj je implementirati jedan, centralizovan i autonoman "Pametni Alarm" koji služi kao sistemski servis. Alarm nije direktno vezan za scene "Spavanje" ili "Jutro", već se konfiguriše na jednom, namenskom ekranu. Korisnik podešava vrijeme, dane ponavljanja i akcije (aktivacija zujalice i/ili pokretanje bilo koje od postojećih scena).
+
+Ključni uslov: Funkcionalnost alarma je u potpunosti uslovljena prethodnim podešavanjem tačnog sistemskog vremena i datuma (RTC). Ukoliko RTC vrijeme nije validno (IsRtcTimeValid() vrati false), korisnički interfejs će onemogućiti konfiguraciju alarma i usmjeriti korisnika na ekran za podešavanje vremena.
+
+2. Faza 1: Backend Razvoj (Modul timer)
+Ova faza se fokusira na kreiranje logičkog "mozga" alarma, potpuno odvojenog od korisničkog interfejsa.
+
+Zadatak 1.1: Kreiranje datoteke timer.h (Javni API)
+Ova datoteka definiše javni interfejs modula.
+
+Definicija Strukture za EEPROM: Kreirati Timer_EepromConfig_t strukturu sa #pragma pack(1) koja sadrži:
+
+uint16_t magic_number;
+
+bool isActive; // Glavni ON/OFF prekidač za alarm
+
+uint8_t hour; // Sat aktivacije (0-23)
+
+uint8_t minute; // Minuta aktivacije (0-59)
+
+uint8_t repeatMask; // Bitmaska za dane ponavljanja (Pon=bit0... Ned=bit6)
+
+bool actionBuzzer; // Fleg za aktivaciju zujalice
+
+int8_t sceneIndexToTrigger; // Indeks scene (0-5) koja se pokreće. Vrijednost -1 znači "nijedna".
+
+uint16_t crc;
+
+Definicija Pomoćnih Makroa: Definisati makroe za dane u sedmici (TIMER_MONDAY, TIMER_WEEKDAYS, itd.) radi lakšeg rada sa repeatMask.
+
+Definicija "Opaque" Pointera: Definisati typedef struct Timer_s Timer_Handle;
+
+Deklaracija Javnih Funkcija (Prototipovi):
+
+Timer_GetInstance()
+
+Timer_Init()
+
+Timer_Save()
+
+Timer_SetDefault()
+
+Timer_Service()
+
+Svi potrebni Getteri i Setteri za svaki član Timer_EepromConfig_t strukture (npr. void Timer_SetState(bool isActive);, bool Timer_IsActive(void);, void Timer_SetSceneIndex(int8_t index);, itd.).
+
+Zadatak 1.2: Kreiranje datoteke timer.c (Implementacija Logike)
+Ova datoteka sadrži konkretnu implementaciju funkcionalnosti.
+
+Definicija Interne Strukture i Instance: Definisati struct Timer_s koja sadrži Timer_EepromConfig_t config; i bool hasTriggeredThisMinute;. Kreirati static struct Timer_s timer;.
+
+Implementacija Timer_Init() i Timer_Save(): Implementirati logiku za čitanje i pisanje u EEPROM sa CRC provjerom, po uzoru na ostale module u projektu.
+
+Implementacija Timer_Service(): Ovo je ključna funkcija koja se poziva iz main.c petlje.
+
+Provjerava da li se minuta na RTC-u promijenila. Ako jeste, resetuje hasTriggeredThisMinute na false.
+
+Ako je hasTriggeredThisMinute == false I timer.config.isActive == true:
+
+Dohvata trenutno vrijeme (sat, minut) i dan u sedmici sa RTC-a.
+
+Provjerava da li se trenutno vrijeme poklapa sa timer.config.hour i timer.config.minute.
+
+Provjerava da li je današnji dan selektovan u timer.config.repeatMask.
+
+Ako su svi uslovi ispunjeni, izvršava akcije:
+
+Postavlja hasTriggeredThisMinute = true.
+
+Ako je timer.config.actionBuzzer == true, aktivira zujalicu.
+
+Ako je timer.config.sceneIndexToTrigger != -1, poziva Scene_Activate(timer.config.sceneIndexToTrigger).
+
+3. Faza 2: Frontend Razvoj (Modul display)
+Ova faza se fokusira na kreiranje intuitivnog i vizuelno privlačnog korisničkog interfejsa.
+
+Zadatak 2.1: Priprema Grafičkih Resursa
+Konvertovati nove bitmape (bmicons_toggle_on.c, bmicons_toogle_off.c, bmicons_date_time.c, bmicons_button_up.c, bmicons_button_down.c, bmicons_button_ok.c, bmicons_button_cancel.c) u .c format koristeći BitmapConverter.exe.
+
+Dodati extern deklaracije za nove bitmape u Resource.h.
+
+Dodati nove .c datoteke sa slikama u IC.uvprojx projektni fajl.
+
+Zadatak 2.2: Implementacija Ekrana za Podešavanje Vremena (SCREEN_SETTINGS_DATETIME)
+Namjena: Ovaj ekran se prikazuje isključivo ako IsRtcTimeValid() vrati false.
+
+Dizajn: Kreirati jednostavan interfejs sa 5 redova (Dan, Mjesec, Godina, Sat, Minuta). Svaki red sadrži:
+
+TEXT widget za prikaz vrijednosti.
+
+Dva BUTTON widgeta sa slikama bmicons_button_up i bmicons_button_down za inkrement/dekrement.
+
+Logika:
+
+Na dnu ekrana su dugmad "Snimi" i "Otkaži" sa odgovarajućim ikonicama.
+
+Klikom na "Snimi", pozivaju se HAL_RTC_SetTime/Date i obavezno RtcTimeValidSet(). Nakon toga, korisnik se vraća na SCREEN_TIMER.
+
+Zadatak 2.3: Implementacija Glavnog Ekrana Tajmera (SCREEN_TIMER)
+Uslovni Prikaz: Service_TimerScreen() prvo provjerava IsRtcTimeValid().
+
+Ako je false: Prikazuje se samo jedno veliko dugme sa ikonicom bmicons_date_time i tekstom "Podesite Datum i Vrijeme". Klik vodi na SCREEN_SETTINGS_DATETIME.
+
+Ako je true: Prikazuje se puni interfejs:
+
+TEXT widgeti za prikaz vremena alarma i dana ponavljanja.
+
+Veliki BUTTON widget koji služi kao glavni toggle prekidač, koristeći bmicons_toggle_on/off slike.
+
+Dugme "Podesi" koje vodi na SCREEN_SETTINGS_TIMER.
+
+Zadatak 2.4: Implementacija Ekrana za Podešavanje Alarma (SCREEN_SETTINGS_TIMER)
+Dizajn:
+
+Vrijeme: Dva SPINBOX widgeta za sate i minute.
+
+Ponavljanje: RADIO widget ("Jednom", "Radnim danima", "Vikendom", "Ručno") i 7 dinamičkih CHECKBOX widgeta koji se prikazuju samo za "Ručno".
+
+Akcije:
+
+Stilizovani Toggle Switch (kao BUTTON sa bmicons_toggle_on/off slikama) sa tekstom "Zujalica".
+
+Horizontalni Preglednik Scena (Carousel) za odabir scene. Koristi < i > dugmad za listanje kroz sve konfigurisane scene + opciju "Nijedna". Prikazuje ikonicu i naziv odabrane scene.
+
+Logika: Dugme "Sačuvaj" čita stanje svih kontrola, poziva odgovarajuće Timer_Set... funkcije i na kraju Timer_Save().
+
+4. Faza 3: Finalna Integracija Sistema
+Ova faza povezuje novi modul sa postojećim sistemom.
+
+Zadatak 3.1: Ažuriranje stm32746g_eeprom.h
+Dodati #include "timer.h".
+
+Na kraj mape adresa, dodati #define EE_TIMER (EE_GATES + (sizeof(Gate_EepromConfig_t) * GATE_MAX_COUNT)) da se adresa izračuna automatski.
+
+Zadatak 3.2: Ažuriranje display.h
+U eScreen enum dodati nove ekrane: SCREEN_TIMER, SCREEN_SETTINGS_TIMER i SCREEN_SETTINGS_DATETIME.
+
+Zadatak 3.3: Ažuriranje main.c
+Dodati #include "timer.h".
+
+U main() funkciji, dodati poziv Timer_Init() nakon inicijalizacije ostalih modula.
+
+U while(1) petlji, dodati poziv Timer_Service().

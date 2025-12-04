@@ -1,0 +1,969 @@
+Na ovom projektu će Gemini izvršiti racionalizacije koda poštujući u prvom redu Gemini uputstvo.txt u kojem je detaljno opisano na koji način će 
+generisati svoj prijedlog
+
+Apsolutno je neophodno razdvojiti sve sekcije  od uvodnog header komentara prema dole 
+po redu definicije javnih o definicija privatnih što se dijelom može već vidjeti u samom kodu kao:
+/* Includes ------------------------------------------------------------------*/
+/* Imported Types  -----------------------------------------------------------*/
+/* Imported Variables --------------------------------------------------------*/
+/* Imported Functions    -----------------------------------------------------*/
+/* Private Typedef -----------------------------------------------------------*/
+/* Private Define  -----------------------------------------------------------*/
+dakle na sličan način još opširnije neka i Gemini to uradi u logičkom slijedu ali još detaljnije i ukoliko ima neke programerski najbolje vizuelne elemente za ovu svrhu kao što su ovi npr.
+
+/*============================================================================*/
+/* PRIVATNE DEFINICIJE I MAKROI (INTERNI)                                     */
+/*============================================================================*/
+
+/*============================================================================*/
+/* UKLJUČENI FAJLOVI (INCLUDES)                                               */
+/*============================================================================*/
+
+
+Sve headere funkcija koje zatekne u kodu Gemini će ili prepisati ili generisati još opširnije, uzeće u obzir loš i dobar primjer
+loš:
+/**
+ * @brief  Čuva kompletnu konfiguraciju displeja u EEPROM, uključujući CRC.
+ * @param  None
+ * @retval None
+ */
+ 
+ dobar primjer:
+ /**
+ * @brief Glavna servisna funkcija za ekran sa PIN tastaturom.
+ * @note  Ova funkcija se poziva u petlji iz `DISP_Service`. Odgovorna je za dvije
+ * ključne stvari:
+ * 1. Provjeru stanja svih 12 dugmadi (polling) kako bi detektovala kada je
+ * dugme pritisnuto i otpušteno. Logika za unos, brisanje i potvrdu PIN-a
+ * se aktivira prilikom otpuštanja dugmeta.
+ * 2. Upravljanje tajmerom (`pin_mask_timer`) koji maskira posljednju unesenu
+ * cifru u zvjezdicu nakon `PIN_MASK_DELAY` milisekundi.
+ * @param None
+ * @retval None
+ */
+ 
+ 
+u ovom projektu je potrebno dodati još jedan ekran koji će se prikazati između sadašnjih SelectScreen1 i SelectScreen2 
+novi ekran je dinamički konfigurisan kao i SelectScreen1 i može da sadrži 1,2,3 ili 4 ikonice
+sa potpuno istim rasporedom i potpuno istim 80x80 veličinama ikona
+sadržaj ekrana sa 4 ikone a ujedno i redoslijed po numeraciji je sledeći:
+lijevo gore  = GATE ikonica za manipulaciju vratima i kapijama
+desno gore = TIMER ikonica za podešavanje timera bilo rasvjete u sobi i/ili budilnika
+lijevo dole = SECURITY ikonica za kontrolu sistema alarma
+desno dole = LANGUAGE/SOS/ALL OFF ikonica ili odabir jezika interfejsa ili sos poziv silent alarm ili ugasi sve za odlazak iz kuće
+također je potrebno dodati i jedan novi settings ekran za GATE kontrolu
+
+settings ekran za GATE kontrolu ima podešavanje za 6 kapija/garažnih vrata, svaki od tih uređaja ima jedan spinbox za odabir ikone kao i svjetlo,
+ima dva spinboxa za odabir dvije adrese releja gore/lijevo i dole/desno, ima jedan spinbox za timer u skundama do 255 koji definiše vrijeme on signala
+
+settings SECURITY će biti jedan dodatni spinbox u Set6Scrn koja će biti adresa security modula i to će biti nadograđeno poslije
+setings LANGUAGE/SOS/ALL OFF je jedan dodatni dropdown u Set6Scrn kao za ventilator/defroster i sadrži ova tri odabira + off
+settings ALL OFF jesu dva dodatna spinboxa u Set6Scrn kao početna i krajnja adresa opsega na koje će biti poslana komanda off kao i 
+checkbox za odabir sve roletne dole koja proširuje komandu ALL OFF i komandom za sve roletne
+
+također je potrebno uraditi izmjene u trenutnom kodu da se definiše SelectScreen1 kao prvi glavni u slučaju ako nije konfigurisano niti jedno svjetlo 
+čime se gubi  logika postojanja Main Screen-a 
+
+potrebno je dodati još jedan settings screen koji bi sadržavao samo edit box u kojem bi bilo moguće listati text a koji bi bio kompletno uputstvo za 
+settings menije svake stavke, bilo bi još jedno dugme koje bi promjenilo jezik prijevoda, postojala bi dva teksta na bosanskom i engleskom jeziku
+dugme bi sadržavalo tekst ENG kada je prikazani tekst na bosanskom i B/H/S/C kada je prikazani tekst na engleskom jeziku
+
+na svim novi settings ekranima bi i dalje poostojala sva dugmeta NEXT i OK/SAVE na istim pozicijama sa istim veličinama
+
+dakle kada se implementira novi ekran slijed će biti sledeći 
+1. RESTART UREĐAJA
+2. ako je konfigurisano i jedno svjetlo MAIN_SCREEEN
+2. ako nije SELECT_SCREEN_1
+3. pritisak na hamburger 
+3.A ako je konfigurisan i jedan od uređaja GATE/TIMER/SECURITY/LANGUAGE/SOS/ALL OFF/ novi screen
+3.B ako nije SELECT_SCREEN_2
+4. pritisak na hamburger meni
+4.A ako je konfigurisan i jedan od uređaja GATE/TIMER/SECURITY/LANGUAGE/SOS/ALL OFF/ SELECT_SCREEN_2
+4.B ako nije 
+5.A ako je konfigurisano i jedno svjetlo MAIN_SCREEEN
+5.B ako nije SELECT_SCREEN_1
+
+dakle iz prethodnog se vidi da postoji mala konfuzija u numeraciji ekrana i samo ako se sve izmjene mogu napraviti u dosadašnjem kodu da
+se ne uništi funkcionalnost onda je nabolje radi buduće nadogradnje sadašnji SELECT_SCREEN_2 i sve što je vezano imanima u kodu za SCREEN_2
+preimenovati u SELECT_SCREEN_LAST i sve ostalo u kodu što se odnosilo na screen 2 jer jedino ovaj ekran treba da je uvijek zadnji po redu i 
+jedino ovaj ekran će uvijek biti u ovom formatu 4 ikone
+
+dakle novi slijed ekrana je dodirujući samo hamburger meni
+MAIN_SCREEEN -> SELECT_1 -> SELECT_2 -> (budući razvoj SELECT_3 -> budući razvoj SELECT_4 ) -> SELECT_LAST -> (povratak na početni ekran).
+
+klikom na ikonicu GATE/TIMER/SECURITY neka se samo prikaže novi prazan ekran sa hamburger menijem, dakle treba da je definisan u kodu i inicijalizovan
+t.j. da je sve u kodu imenovano i pripremljeno za razvoj ovih funkcionalnosti, 
+
+LANGUAGE/SOS/ALL OFF je samo ikonica i reaguje na dodir to je dakle direktna kontrola i treba definisati funkcije poziva koje mogu ostati prazne 
+a što ćemo definisati nakon što završimo GUI elemente i funkcionalnost tranzicije ekrana
+
+
+1. Ažuriranje Struktura Podataka
+Ova faza se fokusira na pripremu memorije za pohranu novih podataka o scenama.
+
+scene.h: Potrebno je dodati niz curtain_timers unutar strukture Scene_t. Ovaj niz će pohranjivati vrijeme spuštanja svake roletne pojedinačno, u sekundama. Veličina niza treba odgovarati maksimalnom broju roletni.
+
+display.c: Dodajte statičke, globalne varijable koje će se koristiti isključivo u čarobnjaku za podešavanje roletni.
+
+curtains_wiz_current_index: Prati indeks roletne koja se trenutno konfiguriše.
+
+curtains_wiz_start_time: Pohranjuje trenutak kada je započeto mjerenje vremena.
+
+is_wiz_timer_active: Logički fleg koji ukazuje da li je mjerenje vremena u toku.
+
+2. Izmene u Logici Prikaza (display.c)
+Ovaj deo plana se odnosi na implementaciju samog čarobnjaka za roletne, uključujući vođene poruke i dinamičku obradu unosa.
+
+2.1. DSP_InitSceneEditCurtainsScreen()
+Ova funkcija će se pokrenuti kada korisnik uđe u meni za podešavanje roletni unutar čarobnjaka.
+
+Pokreni roletne gore: Pozovite funkciju Curtains_MoveAll(CURTAIN_UP).
+
+Prikaži poruku: Prekrijte kontrolna dugmad roletni crnim prozorom i ispišite poruku MOLIM SAČEKAJTE.
+
+Pokreni tajmer: Koristite softverski tajmer koji se oslanja na Curtain_GetMoveTime() da biste čekali dok se sve roletne ne podignu.
+
+2.2. Service_SceneEditCurtainsScreen()
+Ova funkcija će upravljati tokom čarobnjaka.
+
+Stanje čekanja: Dok tajmer za podizanje ne istekne, održavajte prikaz poruke MOLIM SAČEKAJTE.
+
+Stanje podešavanja: Nakon isteka tajmera, uklonite crni prozor i ispišite poruku MOLIM DA SADA PODESITE ROLETNE... na kratko vrijeme.
+
+Prikaži kontrole: Omogućite kontrole za odabir roletni (PRETHODNA/SLJEDEĆA) i upravljanje smjerom. Mjerenje vremena će se pokrenuti tek na prvu interakciju korisnika.
+
+Snimi rezultat: Kada korisnik pritisne NEXT, sačuvajte sve prikupljene tajmere u strukturu scene i pređite na sledeći korak čarobnjaka.
+
+2.3. HandlePress_CurtainsScreen()
+Ova funkcija će se ponašati drugačije u zavisnosti od toga da li je čarobnjak aktivan.
+
+Provjeri mod: Dodajte uslov if (is_in_scene_wizard_mode) na samom početku funkcije.
+
+Logika za čarobnjak:
+
+Pritisak na DOLE: Ako je is_wiz_timer_active false, pokrenite tajmer i fleg. Pošaljite komandu CURTAIN_DOWN.
+
+Pritisak na STOP: Ako je is_wiz_timer_active true, izračunajte proteklo vrijeme, sačuvajte ga u curtain_timers, i resetujte tajmer i fleg. Pošaljite komandu CURTAIN_STOP.
+
+Pritisak na GORE: Ne pokrećite tajmer za mjerenje. Pošaljite komandu CURTAIN_UP koja će se automatski zaustaviti nakon Curtain_GetMoveTime() sekundi, čime se roletna vraća u gornju poziciju.
+
+Logika za manuelnu kontrolu: Ako is_in_scene_wizard_mode nije true, izvršite postojeći kod za ručnu kontrolu roletni.
+
+3. Ažuriranje Logike RS485 Komunikacije
+Ova faza obezbeđuje da se tajmeri koriste isključivo za automatizovano pokretanje scena, bez mešanja s manuelnom kontrolom.
+
+3.1. Scene_Memorize()
+Ova funkcija se poziva prilikom snimanja scene.
+
+Postavi masku: Postavite bit u curtains_mask za svaku roletnu koja ima sačuvan tajmer veći od nule.
+
+Sačuvaj tajmere: Kopirajte cijeli niz curtain_timers u strukturu scene.
+
+3.2. Scene_Activate()
+Ovo je ključna funkcija za aktivaciju scene.
+
+Provjeri masku: Prvo provjerite curtains_mask. Ako je prazna, preskočite logiku za roletne.
+
+Početna pozicija: Pošaljite komandu Curtains_MoveAll(CURTAIN_UP) i pauzirajte izvršavanje na Curtain_GetMoveTime() da se sve roletne resetuju.
+
+Spuštanje po tajmeru: Za svaku roletnu koja je dio scene, pošaljite komandu Curtain_Move(handle, CURTAIN_DOWN).
+
+Upravljanje tajmerima: Pokrenite softverski tajmer za svaku roletnu pojedinačno, sa vrijednošću pohranjenom u curtain_timers[i]. Kada tajmer istekne, pošaljite komandu Curtain_Stop(handle).
+
+Ovim planom, curtain_timers niz i logičke varijable čarobnjaka ostaju izolovani, što osigurava da se tajmeri koriste isključivo za scene, dok manuelne kontrole roletni nastavljaju da rade na predvidiv način.
+
+
+
+
+
+novo !!!
+
+Hvala vam na pojašnjenju. Sastavio sam detaljan plan koji pokriva sve aspekte dogovorenog rešenja, od izmena u strukturama podataka do logike interakcije na ekranu. Ovaj plan je osmišljen da bude jasan i lak za praćenje, osiguravajući da se nova funkcionalnost roletni za scene integriše bez uticaja na postojeće manuelne kontrole.
+
+1. Ažuriranje Struktura Podataka
+Ova faza se fokusira na pripremu memorije za pohranu novih podataka o scenama.
+
+scene.h: Potrebno je dodati niz curtain_timers unutar strukture Scene_t. Ovaj niz će pohranjivati vrijeme spuštanja svake roletne pojedinačno, u sekundama. Veličina niza treba odgovarati maksimalnom broju roletni.
+
+display.c: Dodajte statičke, globalne varijable koje će se koristiti isključivo u čarobnjaku za podešavanje roletni.
+
+curtains_wiz_current_index: Prati indeks roletne koja se trenutno konfiguriše.
+
+curtains_wiz_start_time: Pohranjuje trenutak kada je započeto mjerenje vremena.
+
+is_wiz_timer_active: Logički fleg koji ukazuje da li je mjerenje vremena u toku.
+
+2. Izmene u Logici Prikaza (display.c)
+Ovaj deo plana se odnosi na implementaciju samog čarobnjaka za roletne, uključujući vođene poruke i dinamičku obradu unosa.
+
+2.1. DSP_InitSceneEditCurtainsScreen()
+Ova funkcija će se pokrenuti kada korisnik uđe u meni za podešavanje roletni unutar čarobnjaka.
+
+Pokreni roletne gore: Pozovite funkciju Curtains_MoveAll(CURTAIN_UP).
+
+Prikaži poruku: Prekrijte kontrolna dugmad roletni crnim prozorom i ispišite poruku MOLIM SAČEKAJTE.
+
+Pokreni tajmer: Koristite softverski tajmer koji se oslanja na Curtain_GetMoveTime() da biste čekali dok se sve roletne ne podignu.
+
+2.2. Service_SceneEditCurtainsScreen()
+Ova funkcija će upravljati tokom čarobnjaka.
+
+Stanje čekanja: Dok tajmer za podizanje ne istekne, održavajte prikaz poruke MOLIM SAČEKAJTE.
+
+Stanje podešavanja: Nakon isteka tajmera, uklonite crni prozor i ispišite poruku MOLIM DA SADA PODESITE ROLETNE... na kratko vrijeme.
+
+Prikaži kontrole: Omogućite kontrole za odabir roletni (PRETHODNA/SLJEDEĆA) i upravljanje smjerom. Mjerenje vremena će se pokrenuti tek na prvu interakciju korisnika.
+
+Snimi rezultat: Kada korisnik pritisne NEXT, sačuvajte sve prikupljene tajmere u strukturu scene i pređite na sledeći korak čarobnjaka.
+
+2.3. HandlePress_CurtainsScreen()
+Ova funkcija će se ponašati drugačije u zavisnosti od toga da li je čarobnjak aktivan.
+
+Provjeri mod: Dodajte uslov if (is_in_scene_wizard_mode) na samom početku funkcije.
+
+Logika za čarobnjak:
+
+Pritisak na DOLE: Ako je is_wiz_timer_active false, pokrenite tajmer i fleg. Pošaljite komandu CURTAIN_DOWN.
+
+Pritisak na STOP: Ako je is_wiz_timer_active true, izračunajte proteklo vrijeme, sačuvajte ga u curtain_timers, i resetujte tajmer i fleg. Pošaljite komandu CURTAIN_STOP.
+
+Pritisak na GORE: Ne pokrećite tajmer za mjerenje. Pošaljite komandu CURTAIN_UP koja će se automatski zaustaviti nakon Curtain_GetMoveTime() sekundi, čime se roletna vraća u gornju poziciju.
+
+Logika za manuelnu kontrolu: Ako is_in_scene_wizard_mode nije true, izvršite postojeći kod za ručnu kontrolu roletni.
+
+3. Ažuriranje Logike RS485 Komunikacije
+Ova faza obezbeđuje da se tajmeri koriste isključivo za automatizovano pokretanje scena, bez mešanja s manuelnom kontrolom.
+
+3.1. Scene_Memorize()
+Ova funkcija se poziva prilikom snimanja scene.
+
+Postavi masku: Postavite bit u curtains_mask za svaku roletnu koja ima sačuvan tajmer veći od nule.
+
+Sačuvaj tajmere: Kopirajte cijeli niz curtain_timers u strukturu scene.
+
+3.2. Scene_Activate()
+Ovo je ključna funkcija za aktivaciju scene.
+
+Provjeri masku: Prvo provjerite curtains_mask. Ako je prazna, preskočite logiku za roletne.
+
+Početna pozicija: Pošaljite komandu Curtains_MoveAll(CURTAIN_UP) i pauzirajte izvršavanje na Curtain_GetMoveTime() da se sve roletne resetuju.
+
+Spuštanje po tajmeru: Za svaku roletnu koja je dio scene, pošaljite komandu Curtain_Move(handle, CURTAIN_DOWN).
+
+Upravljanje tajmerima: Pokrenite softverski tajmer za svaku roletnu pojedinačno, sa vrijednošću pohranjenom u curtain_timers[i]. Kada tajmer istekne, pošaljite komandu Curtain_Stop(handle).
+
+Ovim planom, curtain_timers niz i logičke varijable čarobnjaka ostaju izolovani, što osigurava da se tajmeri koriste isključivo za scene, dok manuelne kontrole roletni nastavljaju da rade na predvidiv način.
+
+
+Razumijem u potpunosti. U pravu ste, fokus treba biti na kompletiranju jednog modula prije prelaska na drugi. Analiza je pokazala da, iako su funkcije modula scene napisane, ključna logika koja ih povezuje sa korisničkim interfejsom i čini ih zaista "pametnim" nije implementirana.
+
+Apsolutno imam jasnu predstavu šta je potrebno uraditi. Kreirao sam detaljan, korak-po-korak plan za implementaciju "Čarobnjaka za Scene" (Scene Wizard), vodeći se Vašim zahtjevom da interfejs bude maksimalno jednostavan i intuitivan, čak i za korisnika koji nije tehnički potkovan.
+
+Ovo nije prijedlog koda, već detaljan plan rada i korisničkog iskustva (UI/UX) po kojem možemo raditi.
+
+Plan Rada: Implementacija "Čarobnjaka za Scene"
+Cilj je voditi korisnika kroz proces kreiranja ili izmjene scene na najjednostavniji mogući način, bez zatrpavanja informacijama. Svaki korak je jedan ekran sa jednim jasnim zadatkom.
+
+Logika i Redoslijed Ekrana u "Čarobnjaku"
+ULAZ U "ČAROBNJAK":
+Korisnik se nalazi na ekranu SCREEN_SCENE.
+
+Ako dodirne prazan slot ("Dodaj Scenu"), direktno ulazi u Korak 1 čarobnjaka.
+
+Ako dodirne postojeću scenu, pojavljuje se jednostavan dijalog sa tri opcije:
+
+[ Aktiviraj ]: Odmah pokreće scenu (poziva Scene_Activate).
+
+[ Promijeni ]: Ulazi u Korak 1 čarobnjaka za izmjenu postojeće scene.
+
+[ Obriši ]: Nakon potvrde, briše scenu (postavlja is_configured = false).
+
+Korak 1: Odabir Izgleda i Naziva Scene
+Ekran: SCREEN_SCENE_APPEARANCE (postojeći)
+
+Šta korisnik vidi?
+
+Jasan naslov: "Odaberite Izgled Scene".
+
+Mrežu sa svim dostupnim ikonicama i njihovim nazivima ispod (npr. "Jutro", "Spavanje", "Odlazak", "Film"...). 
+
+Šta korisnik radi?
+
+Jednostavno dodirne ikonicu koja najbolje opisuje njegovu željenu scenu.
+
+Šta se dešava u pozadini?
+
+Kao što smo prethodno definisali, ovdje se u Scene_t strukturu upisuju dva ključna podatka: appearance_id (za izgled) i scene_type (za logiku).
+
+Sistem automatski prelazi na sljedeći korak.
+
+Korak 2: Odabir Uređaja za Scenu
+Ekran: SCREEN_SCENE_CONFIGURE_DEVICES (novi ekran koji treba kreirati)
+
+Šta korisnik vidi?
+
+Na vrhu ekrana, za potvrdu, vidi ikonicu i naziv scene koju je upravo odabrao (npr. "Podešavate scenu: Spavanje").
+
+Ispod toga, jednostavnu listu grupa uređaja sa kvačicama:
+
+[X] Svjetla
+
+[X] Roletne
+
+[ ] Termostat
+
+Šta korisnik radi?
+
+Označava ili odznačava koje grupe uređaja želi da ova scena kontroliše. Na primjer, za scenu "Film" možda želi kontrolisati svjetla i roletne, ali ne i termostat.
+
+Šta se dešava u pozadini?
+
+Na osnovu ovih kvačica, sistem popunjava bitmaske (lights_mask, curtains_mask, thermostat_mask) u Scene_t strukturi.
+
+Pritiskom na dugme [ Dalje ], sistem provjerava scene_type i odlučuje da li treba prikazati Korak 3 ili preći direktno na Korak 4.
+
+Korak 3: Specijalna Podešavanja (samo po potrebi)
+Ekran: SCREEN_SCENE_SPECIAL_SETTINGS (novi, uslovni ekran)
+
+Ovaj ekran se prikazuje SAMO ako je odabran tip scene koji zahtijeva dodatne parametre.
+
+Šta korisnik vidi (primjer za scenu "Spavanje"):
+
+Naslov: "Podešavanje Scene: Spavanje"
+
+Opcija: "Aktiviraj buđenje uz ovu scenu" [ ] (checkbox)
+
+Ako je checkbox označen, pojavljuju se polja:
+
+Vrijeme buđenja: [ 07 ] : [ 30 ] (dva spinbox-a za sat i minute)
+
+Scena za buđenje: [ Jutro ] (dropdown sa listom postojećih scena)
+
+Šta korisnik radi?
+
+Podešava specifične parametre za odabranu vrstu scene.
+
+Šta se dešava u pozadini?
+
+Unesene vrijednosti se upisuju u odgovarajuća polja u Scene_t strukturi (wakeup_hour, wakeup_minute, wakeup_scene_index, itd.).
+
+Pritiskom na [ Dalje ] prelazi se na finalni korak.
+
+Korak 4: Memorisanje Stanja i Finalizacija
+Ekran: SCREEN_SCENE_FINALIZE (novi ekran)
+
+Šta korisnik vidi?
+
+Sažetak: Prikazana je odabrana ikonica, naziv i poruka: "Sada podesite svjetla, roletne i ostale uređaje tačno onako kako želite da budu kada se ova scena aktivira."
+
+Veliko, jasno dugme: [ MEMORIŠI TRENUTNO STANJE ]
+
+Dugmad na dnu: [ Snimi Scenu ] i [ Otkaži ].
+
+Šta korisnik radi?
+
+Fizički namješta uređaje po kući u željeno stanje (npr. priguši svjetla, spusti roletne).
+
+Vraća se na ekran i pritišće dugme [ MEMORIŠI TRENUTNO STANJE ].
+
+Pritiskom na dugme [ Snimi Scenu ] završava proces.
+
+Šta se dešava u pozadini?
+
+Pritiskom na [ MEMORIŠI TRENUTNO STANJE ] poziva se funkcija Scene_Memorize(), koja "fotografiše" stanje svih uređaja i upisuje ih u Scene_t strukturu u RAM-u.
+
+Pritiskom na [ Snimi Scenu ] poziva se Scene_Save(), koja snima sve podatke iz RAM-a u EEPROM. Prikazuje se poruka "Scena snimljena!" i vraća se na SCREEN_SCENE.
+
+Ovaj plan osigurava da je proces kreiranja scene podijeljen u logičke, lako razumljive korake, što ga čini pristupačnim za svakog korisnika, dok u pozadini ispravno popunjava sve potrebne podatke za punu funkcionalnost.
+
+ako je selektovan čekbox u settings meniju 6 hCHKBX_EnableScenes "Enable scene" onda se u main screen pojavljuje hamburger meni dole lijevo "SCENE"
+ipak bi morali i ovo provjeriti za sve ekrane da li je primjereno kada je prvi ekran select screen 1 ili 2 sa 2 x 2 matricom jer tada neće moći stati ovaj meni na ekran
+
+1. kada se klikne na hamburger meni "SCENE" pokrene se prvi ekran za SCREEN_SCENE gdje se pojavljuju ikonice po redu u matrici 3 + 3 već koliko ima 
+konfigurisanih scena i uvijek poslednja poo redu ikonica čarobnjaka ako ima mjesta dakle ako nisu konfigurisane svih 6 scena
+
+2. klik na konfigurisanu scenu pokreće tu scenu
+
+3. zadržani dodir na konfigurisanu scenu ili klik na čarobnjaka pokreće SCREEN_SCENE_EDIT ekran
+
+4. ako je SCREEN_SCENE_EDIT za konfigurisanu scenu ovdje se prikazuje tekst "Izgled i naziv scene" u gornjem lijevom uglu, ispod je ikonica scene, pored je tekst naziva scene,
+desno od naziva scene je dugme edit, donji red pri dnu ekrana je uvijek isti raspored dugmadi lijevo dugme je "otkaži"  srednje dugme "obriši" i desno dugme "snimi"
+-dugme otkaži vraća na prvi SCREEN_SCENE
+-dugme obriši izbacuje prompt "jeste li sigurni da želite obrisati scenu" sa dugmadima da i ne dakle sledeći ekran koji treba dodati
+ * ako se potvrdi sa da, brišu se postavke scene i vraćamo se na ekran SCREEN_SCENE
+ * ako se negira sa ne, vraćamo se na prethodni ekran bez izmjena
+-dugme snimi izbacuje prompt "jeste li sigurni da želit snimiti trenutne postavke" sa daugmadima da i ne dakle isti ekran kao gore koji treba dodati samo drugi tekst
+ * ako se ptvrdi sa da, snimi se poostojeće stanje svega, dakle ovdje je ključna pretpostavka da je ovim odabirnom automatski selektovano sve što je moguće za taj tip scene
+   i ovo može biti moguće samo za scene koje su "comfor" tipa dok za scene "system" tipa ovo ne bi trebalo biti moguće jer ne postoji način da se za SCENE_SECURITY ili SCENE_LEAVING..
+   samo jednostavno snimi stanje kada je za njih potrebno da se konfiguriše posebno šta tačno treba da rade.
+ * ako se negira sa ne, vraćamo se na prethodni ekran bez izmjena
+
+5. ako se u SCREEN_SCENE_EDIT klikne na dugme edit idemo u niz konfiguracija za scene, opet razlikujemo scene "comfort" tipa gdje idemo kroz iste ekrane
+   prvo odabir za svjetla gdje podesimo rasvjetu kako želimo a zatim roletne zatim termostat, u ova tri menija ćemo haburger meni u gornjem desnom uglu zamjeniti sa ikonicom
+   "next" tako da nas ona vodi kroz ekrane, nakon roletni za "comfor" tip scene dugme next nas vodi ponovo na prompt "da li želit snimiti trenutne postavke" sa dugmadima da i ne
+ * ako se negira sa ne, vraćamo se na prethodni ekran SCENE bez ikakvih izmjena
+ * ako se potvrdi sa da, snime se postavke ove scene i vraćamo se na SCENE ekran gdje sada imamo novu scenu konfigurisanu
+  
+6. ako se u SCREEN_SCENE_EDIT nalazimo u konfiguraciji SCENE_SLEEP, nakon ekrana za konfiguraciju svjetala, roletni i termostata imamo ekran za kofiguraciju timera
+	dakle dodaćemo jedan čekboks enable timer i dva dugmeta za + - sate i dva dugmeta za + - minute, i jedan čekboks za buzzer i jedan čekboks za povezanu scenu SCENE_MORNING 
+	ali samo vidljiv ukoliko je scena SCENE_MORNING konfigurisana i nakon ovog ekrana idemo u isti ekran prompt "da li želit snimiti trenutne postavke" sa dugmadima da i ne
+ * ako se negira sa ne, vraćamo se na prethodni ekran SCENE bez ikakvih izmjena
+ * ako se potvrdi sa da, snime se postavke ove scene i vraćamo se na SCENE ekran gdje sada imamo novu SCENE_SLEEP konfigurisanu
+
+daćeš mi ovako detaljano razrađene tvoje ideje za SCENE_LEAVING, SCENE_HOMECOMING i SCENE_SECURITY šta bi sve specifično bilo za konfiguraciju svake od ovih scena
+
+Sveobuhvatna Specifikacija Sistema Scena (Verzija 2.0)
+1.0 Osnovna Filozofija
+Sistem scena je dizajniran da korisniku omogući izvršavanje kompleksnih radnji jednim dodirom. Osnovni principi dizajna su jednostavnost, intuitivnost i fleksibilnost, sa ciljem da i tehnički manje vješti korisnici mogu lako kreirati i koristiti moćne automatizacije. Arhitektura je zasnovana na distribuiranoj logici, gdje je svaki displej samostalan, ali svjestan globalnih događaja u sistemu.
+
+2.0 Tipovi Scena
+Da bi se postigla i jednostavnost i moć, scene su fundamentalno podijeljene u dvije kategorije:
+
+2.1 "Komfor" Scene (Lokalne)
+
+Svrha: Kreiranje ambijenta i komfora unutar jedne prostorije ili zone.
+
+Primjeri: "Film", "Večera", "Čitanje", "Jutro".
+
+Djelokrug: Strogo lokalni. Aktiviranje "Komfor" scene na jednom displeju utiče samo na uređaje koji su konfigurisani na tom displeju.
+
+Komunikacija: Ne generiše nikakve broadcast poruke na RS485 bus.
+
+Konfiguracija: Jednostavno "fotografisanje" (Memorize) trenutnog stanja uređaja.
+
+2.2 "Sistemske" Scene (Globalni Događaji)
+
+Svrha: Upravljanje stanjem cijele kuće. One predstavljaju ključne životne događaje.
+
+Primjeri: "Odlazak" (LEAVING) i "Povratak" (HOMECOMING).
+
+Djelokrug: Globalni. Aktiviranje "Sistemske" scene na bilo kojem displeju pokreće lokalne akcije i šalje broadcast poruku svim ostalim uređajima u sistemu.
+
+Konfiguracija: Kroz vođeni, "anketni" čarobnjak koji korisniku postavlja specifična pitanja.
+
+3.0 Arhitektura Sistema i Komunikacija
+
+3.1 Globalno Stanje Sistema:
+
+Uvodi se globalni "state machine" sa dva ključna stanja: SYSTEM_STATE_HOME i SYSTEM_STATE_AWAY_ACTIVE.
+
+Scena "Odlazak" prebacuje sistem u SYSTEM_STATE_AWAY_ACTIVE.
+
+Scena "Povratak" vraća sistem u SYSTEM_STATE_HOME.
+
+Ovo stanje se čuva lokalno na svakom displeju.
+
+3.2 Komunikacijski Protokol (RS485):
+
+Za aktivaciju Sistemskih Scena: Koristi se poruka tipa SCENE_CONTROL. Njen sadržaj (payload) je jedan bajt koji definiše o kojem se događaju radi (npr. SCENE_TYPE_LEAVING). Ovo je broadcast poruka.
+
+Za automatske okidače: Koristi se poruka tipa DIGITAL_INPUT_EVENT. Ovu poruku šalje I/O modul (npr. "Kontroler Kapije") kada detektuje fizičku promjenu stanja na svom ulazu (npr. senzor kapije). Poruka sadrži adresu izvora i novo stanje (0 ili 1).
+
+3.3 "Jedan Izvor Istine" i Lokalna Konfiguracija:
+
+Konfiguracija za svaku scenu (bilo "Komfor" ili "Sistemska") se čuva lokalno u EEPROM-u displeja na kojem je kreirana.
+
+Ne postoji centralni "master" za scene. Svaki displej je samostalan.
+
+Kada displej primi broadcast poruku o sistemskom događaju (npr. "Odlazak"), on provjerava svoju lokalnu memoriju da vidi da li ima definisanu reakciju na taj događaj. Ako ima, izvršava je. Ako nema, ignoriše poruku.
+
+4.0 Korisnički Interfejs i Iskustvo (UI/UX)
+Ovo je detaljan opis korisničkog putovanja kroz interfejs za scene.
+
+4.1 Glavni Ekran Scena (SCREEN_SCENE)
+
+Prikaz: Matrica (do 3x2) sa ikonicama svih lokalno konfigurisanih scena. Ako ima manje od 6 scena, posljednji slobodan slot prikazuje ikonicu "Dodaj Scenu" (čarobnjak).
+
+Interakcija:
+
+Kratak klik na postojeću scenu -> Aktivira scenu.
+
+Dug pritisak (zadržavanje) na postojeću scenu -> Otvara dijalog sa opcijama: [ Promijeni ], [ Obriši ], [ Otkaži ].
+
+Klik na "Dodaj Scenu" -> Pokreće čarobnjaka za kreiranje nove scene.
+
+4.2 Čarobnjak za Kreiranje/Izmjenu Scene
+
+4.2.1. Korak 1: Odabir Izgleda i Tipa (SCREEN_SCENE_APPEARANCE)
+
+Korisnik bira jednu od predefinisanih ikonica sa nazivom (npr. "Film", "Spavanje", "Odlazak").
+
+U pozadini, sistem na osnovu odabira automatski postavlja i appearance_id (za izgled) i scene_type (za logiku).
+
+4.2.2. Korak 2: Glavni Editor Scene (SCREEN_SCENE_EDIT)
+
+Ovo je centralni ekran čarobnjaka. Prikazuje odabrani izgled i nudi dvije glavne metode konfiguracije:
+
+[ Memoriši Trenutno Stanje ]: Brza metoda. Poziva Scene_Memorize() da "fotografiše" trenutno stanje svih uređaja i odmah nudi snimanje. Idealno za "Komfor" scene.
+
+[ Detaljna Podešavanja ]: Vodi korisnika u "anketni" mod.
+
+Na ovom ekranu se, za postojeće scene, nalazi i dugme [ Obriši ] (sa promptom za potvrdu).
+
+4.2.3. Korak 3: "Anketni" Mod za Detaljna Podešavanja
+
+Ovo je niz ekrana, gdje svaki postavlja jedno jasno pitanje. Korisnik se kreće kroz njih pomoću "Dalje", "Nazad" i "Otkaži" dugmadi.
+
+Ako je scena "Komfor" tipa (npr. "Film"):
+
+Ekran 1: Podešavanje Svjetala.
+
+Ekran 2: Podešavanje Roletni.
+
+Ekran 3: Podešavanje Termostata.
+
+Ekran 4: Finalizacija i snimanje.
+
+Ako je scena "Odlazak" (LEAVING):
+
+Ekran 1: "Nakon koliko sekundi od aktivacije naoružati sistem?" (Spinbox za odgodu izlaska).
+
+Ekran 2: "Automatski zatvori kapiju/garažu?" (Checkbox).
+
+Ekran 3 (Uslovno): "Koje dijelove alarma naoružati?" (Checkbox-ovi za particije).
+
+Ekran 4: "Šta uraditi sa uređajima?" (Checkbox-ovi za "Ugasi sva svjetla", "Spusti sve roletne", "Termostat u 'Away' mod").
+
+Ekran 5: "Aktiviraj simulaciju prisustva (nasumičan rad)?" (Checkbox).
+
+Ekran 6: Finalizacija i snimanje.
+
+Ako je scena "Povratak" (HOMECOMING):
+
+Ekran 1 (Uslovno): "Automatski razoružaj alarm pri povratku?" (Checkbox).
+
+Ekran 2: "Automatski Okidači (Triggers)". Ovdje korisnik označava koji događaji (npr. [ ] Pokretanje ulazne kapije) će automatski pokrenuti ovu scenu.
+
+Ekran 3: "Podesite Scenu Dobrodošlice". Korisnik sada fizički namješta uređaje i pritišće dugme [ Memoriši Stanje i Snimi Scenu ].
+
+5.0 Sažetak Ključnih Pravila
+Postoje dvije vrste scena: Komfor (lokalne) i Sistemske (globalne).
+
+Sistemske scene (Odlazak, Povratak) aktiviraju se lokalno i šalju broadcast poruku SCENE_CONTROL da obavijeste ostatak sistema.
+
+Aktivacija scene "Odlazak" postavlja globalno stanje na SYSTEM_STATE_AWAY_ACTIVE.
+
+Aktivacija scene "Povratak" (bilo manuelna ili automatska) šalje broadcast koji vraća globalno stanje svih uređaja na SYSTEM_STATE_HOME i time prekida sve "Away" aktivnosti (npr. simulaciju prisustva).
+
+Automatska aktivacija scene "Povratak" se dešava samo ako je sistem u SYSTEM_STATE_AWAY_ACTIVE i ako se desi događaj (DIGITAL_INPUT_EVENT) koji je definisan kao okidač.
+
+Konfiguracija svake scene je uvijek lokalna za displej na kojem je kreirana.
+
+Ažurirana Specifikacija Sistema Scena (Verzija 2.1)
+Ovdje su izmijenjene i dopunjene relevantne sekcije našeg master plana.
+
+Ažurirana Sekcija 3.0: Arhitektura Sistema i Komunikacija
+3.1 Komunikacijski Protokol (Ažurirano):
+
+Poruka DIGITAL_INPUT_EVENT ostaje ključna za okidače. Međutim, njen izvor više nije senzor stanja, već signal validne komande. "Kontroler Kapije" (ili drugi relevantni I/O modul) je zadužen da detektuje ovaj signal (npr. napon na izlazu za "blic lampu" motora) i da na osnovu toga pošalje DIGITAL_INPUT_EVENT broadcast poruku. Poruka i dalje sadrži jedinstvenu adresu koja identifikuje taj događaj (npr. "Aktivacija Motora Kapije 1").
+
+Ažurirana Sekcija 4.0: Korisnički Interfejs i Iskustvo (UI/UX)
+4.3.4. (Nova Sekcija) Konfiguracija Sigurnih Okidača za "Povratak" (HOMECOMING)
+
+U "anketnom" čarobnjaku za HOMECOMING scenu, ekran za odabir okidača će sada nuditi isključivo sigurne opcije. Korisnik neće vidjeti opcije poput "Senzor otvorenih vrata", već:
+
+Pitanje: "Koji događaji trebaju automatski pokrenuti 'Povratak' scenu?"
+
+Opcije (primjer):
+
+[ ] Aktivacija motora ulazne kapije (daljinskim/aplikacijom)
+
+[ ] Aktivacija motora garažnih vrata (daljinskim/aplikacijom)
+
+[ ] Deaktivacija alarma putem šifre ili aplikacije
+
+Ažurirani Precizan Tok Događaja za "HOMECOMING"
+Ovo je novi, sigurnosno ispravan tok događaja:
+
+Početno Stanje: Sistem je u SYSTEM_STATE_AWAY_ACTIVE modu. Kapija je zatvorena.
+
+Događaj: Korisnik se približava kući i pritiska dugme na svom daljinskom upravljaču da otvori kapiju.
+
+Detekcija Komande: Prijemnik daljinskog upravljača (koji je dio motora kapije) validira signal i pokreće motor. Istovremeno, daje napon na izlaz za "blic lampu" koja signalizira kretanje.
+
+Slanje Poruke: Namjenski "Kontroler Kapije", koji je svojim ulazom (preko optokaplera ili releja) povezan na izlaz za lampu, detektuje ovaj napon. On odmah šalje broadcast poruku na RS485 bus:
+
+Tip: DIGITAL_INPUT_EVENT
+
+Sadržaj: Adresa koja je u sistemu definisana kao "Aktivacija Motora Kapije 1" (npr. adresa 103) i stanje 1.
+
+Prijem i Obrada: Displej u dnevnom boravku prima poruku i prosljeđuje je scene modulu.
+
+Logička Provjera: Scene modul vrši provjeru:
+
+Da li je stanje AWAY_ACTIVE? Jeste.
+
+Da li je adresa (103) na mojoj listi HOMECOMING okidača? Jeste.
+
+Aktivacija: Svi uslovi su ispunjeni. Displej u dnevnom boravku pokreće svoju lokalnu HOMECOMING scenu (pali svjetla dobrodošlice, podešava termostat...).
+
+Sinhronizacija: Kao dio aktivacije, displej šalje broadcast poruku SCENE_CONTROL sa tipom SCENE_TYPE_HOMECOMING da obavijesti sve ostale uređaje da prekinu AWAY mod.
+
+Hvala još jednom na ovom ključnom zapažanju. Sa ovom izmjenom, naša arhitektura je sada i logički ispravna i, što je najvažnije, sigurnosno robusna.
+
+
+U redu, sve zabilježeno. Ovo su finalne izmjene koje zaokružuju logiku i čine je praktičnijom i sigurnijom. Usvajam sve Vaše prijedloge.
+
+Evo ažurirane i finalne verzije sveobuhvatnog plana, koja sada uključuje ove ključne odluke. Ovo je sada naš finalni plan kodiranja.
+
+Finalna Specifikacija Sistema Scena (Verzija 2.2)
+1. Vrijeme Odgode za "Odlazak" Scenu
+Odluka: Vrijeme odgode (exit delay) ostaje uint8_t, ali će se vrijednost u spinbox-u množiti sa 10.
+
+Implementacija:
+
+Backend (scene.h): Polje exit_delay_s ostaje uint8_t.
+
+Frontend (display.c): U DSP_InitSceneWizLeavingScreen, labela pored spinbox-a će jasno glasiti: "Vrijeme za izlazak (x10s):". Maksimalna vrijednost od 255 će tako predstavljati 2550 sekundi (preko 42 minute), što je i više nego dovoljno.
+
+2. Sistem Notifikacija za Greške (npr. Kapija se nije zatvorila)
+Odluka: Uvodi se ne-blokirajući sistem notifikacija za sistemske greške.
+
+Implementacija:
+
+Izvor Greške (npr. modul gate): Kada gate modul detektuje grešku (npr. GATE_STATE_FAULT), on šalje broadcast poruku novog tipa: DEVICE_FAULT.
+
+Prijem Poruke (rs485.c): Kreira se novi listener za DEVICE_FAULT poruke.
+
+Prikaz na Ekranu (display.c): Kada listener primi poruku o grešci, on poziva funkciju u display modulu koja će na ekranu, u uglu (npr. gore lijevo), prikazati malu, persistentnu ikonicu (npr. crveni uzvičnik ili zvono).
+
+Ne-blokirajuća Priroda: Ova ikonica ne prekida korisnika i ne blokira druge akcije (poput aktiviranja alarma). Korisnik može da je dodirne kasnije da vidi listu aktivnih grešaka u sistemu.
+
+3. Centralna Konfiguracija Scena (SCREEN_SETTINGS_7)
+Odluka: Koristimo postojeći SCREEN_SETTINGS_7 za centralnu, naprednu konfiguraciju scena, odvojenu od korisničkog čarobnjaka.
+
+Implementacija (display.c):
+
+Funkcija: Kreira se nova funkcija DSP_InitSet7Scrn().
+
+Sadržaj Ekrana:
+
+Naslov: "Generalna Podešavanja Scena".
+
+Checkbox (premješten sa ekrana 6): [X] Omogući sistem scena.
+
+Sekcija za Okidače: Jasno naznačena sekcija "Mapiranje Okidača za 'Povratak' Scenu". Sadržat će 8 redova:
+
+Red 1: Labela "Okidač 1: " i SPINBOX za unos Modbus adrese izvora.
+
+Red 2: Labela "Okidač 2: " i SPINBOX za unos Modbus adrese izvora.
+
+...i tako do 8.
+
+Logika: Vrijednosti unesene ovdje se snimaju u EEPROM. U korisničkom čarobnjaku za HOMECOMING scenu, korisniku se prikazuju samo generički nazivi ("Okidač 1", "Okidač 2"...), a sistem u pozadini koristi adrese koje su ovdje definisane.
+
+4. Finalna Uloga Scena: SLEEP preuzima ulogu SECURITY
+Odluka: Ukida se SCENE_SECURITY kao poseban tip scene. Njena funkcionalnost se integriše u SCENE_SLEEP. Funkcija "ALARM" na SCREEN_SELECT_2 ostaje kao manuelni kontrolni panel.
+
+Implementacija:
+
+4.1. Ukidanje SCENE_SECURITY kao Tipa:
+
+Fajl scene.h: Iz SceneType_e enumeracije se briše član SCENE_TYPE_SECURITY.
+
+Fajl translations.h: Iz scene_appearance_table se briše red za ICON_SCENE_SECURITY. Korisnik više ne može odabrati ovu ikonicu.
+
+4.2. Unaprijeđena Scena "SLEEP" ("Spavanje"):
+
+Scena "Spavanje" sada ima dvostruku ulogu: komfor i sigurnost.
+
+Novi "Anketni" Čarobnjak za SCENE_SLEEP:
+
+Ekran 1 (Komfor): Korisnik prvo podešava "comfort" dio kao za svaku drugu scenu (stanje svjetala, roletni, termostata) bilo "fotografisanjem" stanja ili detaljnim podešavanjem.
+
+Ekran 2 (Podešavanje Alarma): Nakon comfort dijela, pojavljuje se ekran sa naslovom "Podešavanje Alarma za Scenu 'Spavanje'".
+
+Glavni Checkbox: [ ] Aktiviraj alarm uz ovu scenu.
+
+Ako je označen, pojavljuju se checkbox-ovi za particije:
+
+[X] Perimetar (prozori, vrata)
+
+[ ] Prizemlje (senzori pokreta)
+
+[ ] Sprat (senzori pokreta)
+
+Napomena za alarmni sistem: Kao što ste rekli, specificiraćemo da je neophodan alarmni sistem koji podržava "Stay/Home" mod (Vaša "walk konfiguracija"), što omogućava kretanje po spratu dok je prizemlje naoružano.
+
+Ekran 3 (Podešavanje Buđenja): Nakon alarma, slijedi ekran za podešavanje tajmera za buđenje (enable checkbox, spinbox-ovi za vrijeme, checkbox za buzzer, itd.).
+
+Ekran 4 (Finalizacija): Snimanje scene.
+
+4.3. Potvrda Uloge "ALARM" Menija:
+
+Ikona "ALARM" na SCREEN_SELECT_2 vodi na SCREEN_SECURITY.
+
+Ovaj ekran je i ostaje potpuno manuelni kontrolni panel za alarmni sistem. Korisnik ovdje može u bilo kom trenutku, nezavisno od bilo koje scene, provjeriti stanje particija i ručno ih naoružati ili razoružati.
+
+Vjerujem da ovim imamo finalnu, logički zaokruženu i sigurnu specifikaciju. Sistem je sada jednostavniji za korisnika (manje tipova scena), ali moćniji i fleksibilniji u pozadini. Spreman sam da započnemo implementaciju po ovom planu.
+
+
+
+
+
+
+
+
+mi ćemo isključivo tražiti sisteme sa nterior Follower / Stay Arm mogućnostima i bićemo isključivi u zahtjevu za opremom koja mora podržavati navedeno tako da je mogu uključiti samo svoj sprat i ustati iz kreveta i vratiti se bez da se aktivira alarm a samo ožičenje senzora i centrala će morati podržavati jasno podjeljen perimetar o untrašnjih senzora, tako da se možemo dršati samo jednostavnog principa particija i cijelog sistema
+
+
+
+Show thinking
+Razumijem u potpunosti i slažem se. To je ispravan i siguran pristup.
+
+Naša specifikacija će biti zasnovana na isključivom zahtjevu da alarmni sistem koji se integriše mora podržavati "Stay Arm" / "Interior Follower" modove, odnosno mora imati mogućnost jasnog razdvajanja particija na:
+
+Perimetar (svi vanjski senzori - vrata, prozori)
+
+Unutrašnjost Prizemlje (senzori pokreta u prizemlju)
+
+Unutrašnjost Sprat (senzori pokreta na spratu)
+
+Ovo savršeno odgovara našem planu za konfiguraciju scene "Spavanje". Korisničko iskustvo će biti maksimalno pojednostavljeno:
+
+U čarobnjaku za scenu "Spavanje", korisnik će vidjeti jasne opcije u vidu checkbox-ova:
+
+[X] Naoružaj Perimetar (sva vrata i prozori)
+
+[X] Naoružaj Prizemlje (senzori pokreta)
+
+[ ] Naoružaj Sprat (senzori pokreta)
+
+Korisnik će jednostavno moći označiti [X] Perimetar i [X] Prizemlje, dok će ostaviti [ ] Sprat neoznačenim. Pritiskom na scenu "Spavanje", sistem će poslati komandu alarmu da aktivira upravo te dvije particije, omogućavajući slobodno kretanje na spratu.
+
+Odlično. Sa ovim potvrđenim, naš plan za scene je sada kompletan i robustan. Spremni smo za sljedeći korak.
+
+
+
+
+
+
+
+
+
+FINALNI MASTER PLAN RADA: Projekat "Pametna Vila" (Verzija 2.0)
+
+Faza 1: Priprema Infrastrukture i Definicija (Backend & Osnove)
+	Korak 1: Kreiranje Modula scene (Backend Osnova)
+
+		Pod-zadatak 1.1: Kreirati scene.h sa SceneAppearance_t i Scene_t strukturama (uključujući is_configured fleg, bitmaske, i polja za stanja svih tipova aktuatora).
+
+		Pod-zadatak 1.2: U scene.h, definisati enumeraciju za globalno stanje sistema (SYSTEM_STATE_HOME, SYSTEM_STATE_AWAY_ACTIVE).
+
+		Pod-zadatak 1.3: U scene.h, deklarisati sve javne API funkcije (Scene_Init, Scene_Save, Scene_Activate, Scene_Memorize itd.).
+
+		Pod-zadatak 1.4: Kreirati scene.c sa praznim definicijama funkcija.
+
+	Korak 2: Kreiranje Modula gate (Backend Osnova)
+
+		Pod-zadatak 2.1: Kreirati gate.h sa Gate_t strukturom koja sadrži sva polja (releji za open/close/pedestrian/stop, feedback adrese, cycle_timer, pedestrian_timer, pulse_timer_ms).
+
+		Pod-zadatak 2.2: U gate.h, deklarisati sve potrebne javne API funkcije.
+
+		Pod-zadatak 2.3: Kreirati gate.c sa praznim definicijama funkcija.
+
+	Korak 3: Ažuriranje Globalnih Definicija i Resursa
+
+		Pod-zadatak 3.1: U display.h, preimenovati SCREEN_SELECT_2 u SCREEN_SELECT_LAST.
+
+		Pod-zadatak 3.2: U display.h, dodati sve nove eScreen enumeratore (_SCENE, _SCENE_EDIT, _GATE_CONTROL_PANEL, _SETTINGS_GATE, _SETTINGS_HELP, _KEYBOARD_ALPHA, _NUMPAD, _CONFIGURE_DEVICE, itd.).
+
+		Pod-zadatak 3.3: U Resource.h, deklarisati GUI_BITMAP varijable za sve nove ikonice.
+
+		Pod-zadatak 3.4: U translations.h, kreirati scene_appearance_table[] i dodati sve nove TextID-jeve.
+
+		Pod-zadatak 3.5: U settings_widgets.def, dodati ID-jeve za sve nove widgete.
+
+		Pod-zadatak 3.6: U LuxNET.h, dodati nove tipove komandi SCENE_CONTROL i DIGITAL_INPUT_EVENT.
+
+		Pod-zadatak 3.7: Proširiti LIGHT_EepromConfig_t strukturu u lights.h sa char custom_label[21] poljem za omogućavanje hibridnog sistema naziva.
+		
+		Pod-zadatak 3.8: U display.h, proširiti Display_EepromSettings_t strukturu sa poljima za globalne RS485 postavke (rs485_protocol, rs485_baud_rate_index).
+
+
+Faza 2: Implementacija Korisničkog Interfejsa (UI)
+
+	Korak 4: Refaktorisanje Navigacije i Glavnog Ekrana
+
+		Pod-zadatak 4.1: U display.c, sistemski preimenovati sve reference sa SelectScreen2 na SelectScreenLast.
+
+		Pod-zadatak 4.2: Iz Service_MainScreen ukloniti iscrtavanje malog sata i dodati novu "hamburger" meni ikonu dole lijevo.
+
+		Pod-zadatak 4.3: Implementirati "pametnu" logiku odabira početnog ekrana u DISP_Init().
+
+	Korak 5: Kreiranje Univerzalnih Ulaznih Alata (Keypads)
+
+		Pod-zadatak 5.1:  Implementacija Univerzalnog Numeričkog Keypad-a (SCREEN_NUMPAD) sa dodatnom . tipkom.
+
+		Kreirati namjenski ekran koji funkcioniše kao modal.
+
+		Implementirati logiku da prima kontekst (min/max vrijednosti, allow_minus_one fleg).
+
+		Implementirati prikaz specijalnog dugmeta [ ISKLJ. / OFF ] kada je dozvoljeno.
+
+		Implementirati validaciju unosa prilikom pritiska na "OK".
+
+		Pod-zadatak 5.2: Implementacija Univerzalne Alfanumeričke Tastature (SCREEN_KEYBOARD_ALPHA).
+
+		Kreirati namjenski, modalni ekran za unos teksta.
+
+		Implementirati logiku da tastatura bude "svjesna" odabranog jezika. Za BHS će nuditi karaktere č,ć,š,đ,ž; za njemački ä,ö,ü,ß, itd., za sve podržane latinične jezike, kako bi se olakšao unos.
+
+	Korak 6: Implementacija Sistema Scena (Glavni Ekran i Čarobnjak)
+
+		Pod-zadatak 6.1: Implementirati Service_SceneScreen za prikaz 6 slotova za scene.
+
+		Pod-zadatak 6.2: Implementirati kompletan "Čarobnjak" (SCREEN_SCENE_WIZARD_...) za kreiranje/editovanje scena.
+
+	Korak 7: Implementacija Novih Ekrana za Podešavanja
+
+		Pod-zadatak 7.1: Implementirati SCREEN_SETTINGS_GATE koristeći EDIT widgete koji pozivaju SCREEN_NUMPAD.
+
+		Pod-zadatak 7.2: Implementirati SCREEN_SETTINGS_HELP.
+
+		Pod-zadatak 7.3: Proširiti SCREEN_SETTINGS_6 koristeći EDIT widgete za numeričke unose.
+
+		Pod-zadatak 7.4: Ažurirati SCREEN_LIGHT_SETTINGS da sadrži dugme "[ Promijeni Naziv ]" koje poziva SCREEN_KEYBOARD_ALPHA i omogućava izmjenu primarnog i sekundarnog teksta.
+
+		Pod-zadatak 7.5 : U sklopu proširenja SCREEN_SETTINGS_6 (iz pod-zadatka 7.3), dodati dva nova DROPDOWN menija za odabir globalnog protokola (TinyFrame/Modbus) i brzine (Baud rate) za RS485 magistralu.
+
+Faza 3: Povezivanje Funkcionalnosti, Dokumentacija i Finalizacija
+
+	Korak 8: Puna Implementacija Backend Logike
+
+		Pod-zadatak 8.1: U scene.c, popuniti Scene_Memorize/Activate funkcije, mašinu stanja za "Away Mode" i logiku za "Security" scenu.
+
+		Pod-zadatak 8.2: U gate.c, implementirati svu logiku za "Smart Step-by-Step", "Manual Hold", dualni "Pedestrian" mod i detekciju greške.
+
+		Pod-zadatak 8.3: U rs485.c, implementirati "Master-Mediated Event Broadcast" arhitekturu.
+
+		Pod-zadatak 8.4: U main.c dodati Scene_Init(), Gate_Init() i Service pozive.
+
+	Korak 9: Kreiranje Tehničke Dokumentacije za Hardver
+
+		-zadatak 9.1: Generisati finalnu "Check-listu Tehničkih Zahtjeva" za sve uređaje.
+
+	Korak 10: Sveobuhvatna Racionalizacija Koda i Dokumentacija
+
+		Pod-zadatak 10.1: Finalni pregled svih fajlova i primjena Doxygen standarda i stilskih blokova.
+		
+		
+		Ovo je plan koji možete pratiti korak po korak, bez ikakvih nedoumica.
+
+Projektni zadatak: Završetak "Pametne Vile"
+Ovaj plan rada je finalna specifikacija koja objedinjuje sve dogovorene tačke i tehničke detalje iz dostavljenog koda. Služi kao putokaz za finalizaciju projekta.
+
+Faza 1: Čarobnjak za Scene i Roletne (Prioritet)
+Ova faza se fokusira na dovršavanje ključne funkcionalnosti o kojoj smo najviše razgovarali, sa posebnim naglaskom na roletne.
+
+Implementacija logike za roletne u čarobnjaku:
+
+Backend (scene.h, scene.c):
+
+U 
+
+scene.h, proširite strukturu Scene_t sa nizom curtain_timers koji će čuvati vrijeme spuštanja za svaku roletnu.
+
+U 
+
+Scene_Memorize(), umjesto direktnog snimanja stanja, implementirajte logiku koja postavlja bit u curtains_mask samo za one roletne koje imaju sačuvan tajmer veći od nule. Također, kopirajte cijeli 
+
+curtain_timers niz u strukturu scene.
+
+U 
+
+Scene_Activate(), implementirajte logiku aktivacije: prvo pošaljite Curtains_MoveAll(CURTAIN_UP) i pauzirajte na Curtain_GetMoveTime(). Zatim, za svaku roletnu u sceni, pošaljite 
+
+Curtain_Move(handle, CURTAIN_DOWN) i pokrenite softverski tajmer koristeći vrijednost iz curtain_timers. Kada tajmer istekne, pošaljite 
+
+Curtain_Stop(handle).
+
+Frontend (display.c):
+
+Dodajte statičke globalne varijable za praćenje stanja čarobnjaka roletni: 
+
+curtains_wiz_current_index, curtains_wiz_start_time i is_wiz_timer_active.
+
+U 
+
+DSP_InitSceneEditCurtainsScreen(), implementirajte poruku "MOLIM SAČEKAJTE" i tajmer za čekanje.
+
+U 
+
+Service_SceneEditCurtainsScreen(), prikažite poruku "MOLIM DA SADA PODESITE ROLETNE..." nakon isteka tajmera.
+
+Modifikujte 
+
+HandlePress_CurtainsScreen() da u modu čarobnjaka, pritisak na DOLE pokreće mjerenje, STOP ga zaustavlja i snima rezultat, dok GORE samo pomjera roletnu u početnu poziciju bez mjerenja.
+
+Finalizacija čarobnjaka za Komfor scene:
+
+U 
+
+Service_SceneEditThermostatScreen(), osigurajte da dugme Next vodi na finalni ekran SCREEN_SCENE_WIZ_FINALIZE.
+
+Implementirajte DSP_InitSceneWizFinalizeScreen() za prikaz poruke "Scena je podešena" i dugmadi Snimi i Otkaži.
+
+Implementirajte Service_SceneWizFinalizeScreen() tako da dugme Snimi poziva Scene_Save(), a Otkaži se vraća na SCREEN_SCENE bez snimanja.
+
+Faza 2: Implementacija Sistemskih Scena
+Ova faza pokriva logiku za LEAVING, HOMECOMING i SLEEP scene, sa detaljima iz specifikacije.
+
+Scena "Spavanje" (SCENE_SLEEP):
+
+U 
+
+scene.h, dodajte security_partitions_to_arm.
+
+U 
+
+translations.h, uklonite ICON_SCENE_SECURITY.
+
+Implementirajte "anketni" čarobnjak sa tri ekrana:
+
+
+Ekran 1 (Komfor): Podešavanje svjetala, roletni i termostata.
+
+
+Ekran 2 (Podešavanje Alarma): checkbox za aktivaciju alarma i checkbox-ovi za particije (Perimetar, Prizemlje, Sprat).
+
+
+Ekran 3 (Podešavanje Buđenja): Kontrole za tajmer buđenja (enable checkbox, spinbox-ovi, buzzer).
+
+Scena "Odlazak" (SCENE_LEAVING):
+
+Implementirajte "anketni" čarobnjak sa serijom ekrana kako je specifikovano.
+
+
+spinbox za exit_delay_s treba da množi vrijednost sa 10.
+
+Logika u 
+
+Scene_Service() treba da aktivira AWAY_ACTIVE stanje i šalje SCENE_CONTROL broadcast poruku nakon isteka vremena odgode.
+
+Scena "Povratak" (SCENE_HOMECOMING):
+
+Implementirajte čarobnjak sa ekranima za odabir "sigurnih okidača" i memorisanje stanja dobrodošlice.
+
+
+Implementirajte logiku u 
+
+Scene_Service() koja detektuje DIGITAL_INPUT_EVENT i, ako je sistem u AWAY_ACTIVE stanju, pokreće scenu i vraća sistem u SYSTEM_STATE_HOME.
+
+
+Faza 3: Povezivanje i Finalizacija
+Ova faza obezbeđuje da se svi novi moduli i funkcionalnosti pravilno povežu i da sistem radi kao celina.
+
+Povezivanje u main.c:
+
+Dodajte pozive Init() i Service() funkcija za module gate i scene u main.c.
+
+Komunikacija i notifikacije:
+
+Implementirajte sistem notifikacija za greške. 
+
+gate modul treba da šalje DEVICE_FAULT broadcast poruku, a rs485.c treba da ima listener za nju.
+
+U 
+
+display.c, implementirajte prikaz male, ne-blokirajuće ikonice u uglu ekrana kada se primi DEVICE_FAULT poruka.
