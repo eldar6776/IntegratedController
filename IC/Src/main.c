@@ -67,7 +67,7 @@ DMA2D_HandleTypeDef hdma2d;
 #define FANC_NTC_PULLUP                     2200U	// 2k2 pullup resistor
 #define ADC_READOUT_PERIOD                  345     // ntc conversion rate
 #define SYSTEM_STARTUP_TIME                 8765U   // 8s application startup time
-#define LSE_RESTART_ATTEMPTS                10      // Broj pokušaja prije nego što predemo na LSI
+#define LSE_RESTART_ATTEMPTS                10      // Broj pokuï¿½aja prije nego ï¿½to predemo na LSI
 #define LSE_TIMEOUT                         2345    // Timeout za proveru stanja oscilatora (u milisekundama)
 #define PCA9685_GENERAL_CALL_ACK			0x00U		// pca9685 general call address with ACK response
 #define PCA9685_LED_0_ON_L_REG_ADDRESS      0x06U
@@ -90,7 +90,7 @@ bool LSE_Failed = false;  // Flag koji pokazuje da je LSE trajno otkazan
 bool pwminit = true;
 static uint8_t pwm[32] = {0};
 uint8_t pca9685_register[PCA9685_REGISTER_SIZE] = {0};
-// Definišemo globalni fleg i postavljamo ga na `false` kao pocetno stanje.
+// Definiï¿½emo globalni fleg i postavljamo ga na `false` kao pocetno stanje.
 bool g_high_precision_mode = false;
 volatile uint32_t g_last_fw_packet_timestamp = 0; // Definicija globalne varijable
 char system_pin[8]; // << NOVO: Definicija globalne varijable
@@ -189,7 +189,7 @@ int main(void)
         Gate_Service();
         Scene_Service();
         Timer_Service();
-        RS485_Service(); // prvo sve obradi pa šalji
+        RS485_Service(); // prvo sve obradi pa ï¿½alji
         Buzzer_Service();
         CheckRTC_Clock(); // provjera ispravnosti RTC oscilatora i prelazak na LSI
         FwUpdateAgent_Service();
@@ -362,7 +362,7 @@ void TS_Service(void) {
         // =======================================================================
         // === ZAMIJENITE `IF` USLOV OVOM LOGIKOM ===
 
-        // 1. Definišemo lokalnu varijablu za treshold.
+        // 1. Definiï¿½emo lokalnu varijablu za treshold.
         uint8_t threshold;
 
         // 2. Provjeravamo globalni fleg i biramo vrijednost.
@@ -393,7 +393,7 @@ void TS_Service(void) {
 /**
   * @brief  Inicijalizuje globalne sistemske varijable iz EEPROM-a.
   * @note   Ova funkcija ucitava samo kljucne sistemske parametre koji nisu
-  * dio specificnih modula, kao što su sistemski flegovi (dijeljeni sa
+  * dio specificnih modula, kao ï¿½to su sistemski flegovi (dijeljeni sa
   * bootloaderom) i adresa uredaja na RS485 busu.
   * @param  None
   * @retval None
@@ -415,8 +415,17 @@ static void RAM_Init(void)
     uint8_t pin_buf[8];
     EE_ReadBuffer(pin_buf, EE_SYSTEM_PIN, 8);
 
-    // Provjera da li je PIN ikada snimljen (ako nije, prvi bajt ce biti 0xFF ili 0x00)
-    if (pin_buf[0] < '0' || pin_buf[0] > '9') {
+    // Provjera da li je PIN validan (mora sadrÅ¾avati samo cifre 0-9)
+    bool pin_valid = true;
+    for (uint8_t i = 0; i < 8; i++) {
+        if (pin_buf[i] == '\0') break; // NULL terminator - kraj stringa
+        if (pin_buf[i] < '0' || pin_buf[i] > '9') {
+            pin_valid = false;
+            break;
+        }
+    }
+
+    if (!pin_valid) {
         // PIN nije validan, snimi default "1234" u EEPROM i u RAM
         strcpy(system_pin, DEF_SRVC_PSWRD);
         EE_WriteBuffer((uint8_t*)system_pin, EE_SYSTEM_PIN, 8);
@@ -559,7 +568,7 @@ static void CACHE_Config(void) {
     SCB_EnableDCache();
 }
 /**
-  * @brief inicijalizacija oscilatora sa provjerom starta LSE i ako otkaže prelazak na LSI
+  * @brief inicijalizacija oscilatora sa provjerom starta LSE i ako otkaï¿½e prelazak na LSI
   * @param
   * @retval
   */
@@ -857,7 +866,7 @@ static void MX_CRC_DeInit(void) {
 /**
   * @brief  Ocitava temperaturu sa NTC senzora i prosljeduje je termostat modulu.
   * @note   Finalna, refaktorisana verzija. Sva originalna logika za filtriranje je
-  * sacuvana, dok je logika za odlucivanje (histereza) premještena u termostat modul.
+  * sacuvana, dok je logika za odlucivanje (histereza) premjeï¿½tena u termostat modul.
   * @param  None
   * @retval None
   */
@@ -868,7 +877,7 @@ static void ADC3_Read(void) {
     // Ako ovaj uredaj nije master, ne treba ni da mjeri temperaturu.
     if (!Thermostat_IsMaster(pThst)) return;
 
-    // Lokalne staticke varijable za filtriranje ocitanja (Vaša originalna logika).
+    // Lokalne staticke varijable za filtriranje ocitanja (Vaï¿½a originalna logika).
     static uint32_t adctmr = 0U;
     static uint32_t sample_cnt = 0U;
     static uint16_t sample_value[10] = {0};
@@ -879,7 +888,7 @@ static void ADC3_Read(void) {
     if ((HAL_GetTick() - adctmr) >= ADC_READOUT_PERIOD) {
         adctmr = HAL_GetTick();
 
-        // Inicijalizacija filtera pri prvom pokretanju (Vaša originalna logika).
+        // Inicijalizacija filtera pri prvom pokretanju (Vaï¿½a originalna logika).
         if (first_run) {
             first_run = false;
             uint32_t tmp_init = 0;
@@ -893,7 +902,7 @@ static void ADC3_Read(void) {
             filtered_temp = ROOM_GetTemperature(tmp_init);
         }
 
-        // Uzimanje novog uzorka sa ADC-a i ažuriranje bafera za prosjek.
+        // Uzimanje novog uzorka sa ADC-a i aï¿½uriranje bafera za prosjek.
         HAL_ADC_Start(&hadc3);
         HAL_ADC_PollForConversion(&hadc3, 10);
         sample_value[sample_cnt] = HAL_ADC_GetValue(&hadc3);
@@ -914,7 +923,7 @@ static void ADC3_Read(void) {
             // NTC je konektovan. Obavijesti termostat modul.
             Thermostat_SetNtcStatus(pThst, true, false);
 
-            // Primjena eksponencijalnog filtera za "peglanje" vrijednosti (Vaša originalna logika).
+            // Primjena eksponencijalnog filtera za "peglanje" vrijednosti (Vaï¿½a originalna logika).
             float new_temp = ROOM_GetTemperature(tmp_avg);
             filtered_temp = (filtered_temp * 0.9f) + (new_temp * 0.1f);
 
@@ -1089,9 +1098,9 @@ static float ROOM_GetTemperature(uint16_t adc_value) {
 void CheckRTC_Clock(void) {
     static uint32_t lastCheckTime = 0;
     static uint8_t lastSeconds = 60;
-    // Provjeri da li je prošlo dovoljno vremena za novu provjeru
+    // Provjeri da li je proï¿½lo dovoljno vremena za novu provjeru
     if ((HAL_GetTick() - lastCheckTime) >= LSE_TIMEOUT) {
-        lastCheckTime = HAL_GetTick();  // Ažuriraj vrijeme posljednje provjere
+        lastCheckTime = HAL_GetTick();  // Aï¿½uriraj vrijeme posljednje provjere
         // Provjeri trenutni broj sekundi RTC-a
         RTC_TimeTypeDef sTime;
         HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
@@ -1124,7 +1133,7 @@ void CheckRTC_Clock(void) {
                 MX_RTC_Init();  // Ponovno inicijalizuj RTC sa LSI
             }
 
-            // Ažuriraj posljednje sekundno ocitavanje
+            // Aï¿½uriraj posljednje sekundno ocitavanje
             lastSeconds = sTime.Seconds;
         }
     }

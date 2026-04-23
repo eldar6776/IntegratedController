@@ -72,8 +72,14 @@ Ideja je kreirati novi poddirektorij isključivo za vizuelne servise:
 9. **`GUI_ScenesUI.c` (u sklopu dodavanja nove funkcionalnosti)**
    - **Ekrani**: `SCREEN_SCENE`, i novo-izmišljeni `SCREEN_SCENE_WIZ_...` (Čarobnjak).
 
+10. **`GUI_SkinManager.c` (Theming System)**
+    - **Ekrani**: `SCREEN_SKIN` (Skin prozor pozvan dugim pritiskom na ikonu #4).
+    - **Odgovornost**: Dinamičko upravljanje setovima ikona. Korištenje QSPI memory-mapped adresa za promjenu vizuelnog identiteta (Skin-a) u realnom vremenu bez restarta MCU-a.
+
 ### Faze Implementacije
 - **Faza 1**: Učitavanje zaglavlja koda (Headeri) u CubeIDE projektu, definicija `/GUI/` sub-strukture.
 - **Faza 2**: Iterativno ekstrakcija (Init / Service / Kill rutine) iz ekrana jedan po jedan.
 - **Faza 3**: Provjera Linkanja (externing preklapanja stanja). 
 - **Faza 4**: Potvrda kompajliranja i prečišćavanje mrtvog koda.
+- **Faza 5**: Implementacija `GUI_SkinManager`-a i prelazak na dinamičko mapiranje QSPI resursa (Icon Sets).
+
