@@ -167,7 +167,7 @@ flowchart TD
 
 ---
 
-## Premium System Diagram
+## System Diagram
 
 ```mermaid
 flowchart LR
