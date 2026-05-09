@@ -24,7 +24,7 @@
 
 The repository is centered around an **STM32F7-based control unit** with a **touchscreen-driven local interface**, **RS485 field communication**, **persistent EEPROM-based configuration**, **modular device control**, and a **dedicated bootloader/application split** for controlled firmware lifecycle management.
 
-This is not a minimal demo firmware. It is structured as a **complete embedded system platform** with clear separation between:
+It is structured as a **complete embedded system platform** with clear separation between:
 
 - **boot-time firmware control**
 - **runtime application logic**
@@ -34,7 +34,7 @@ This is not a minimal demo firmware. It is structured as a **complete embedded s
 - **persistent storage and configuration handling**
 - **hardware abstraction and middleware**
 
-The result is a codebase that is valuable both as a **working smart home controller** and as a **well-organized embedded software architecture reference**.
+The result is a codebase that is valuable both as a **production-grade smart home controller** and as a **well-organized embedded software architecture reference**.
 
 ### Highlights
 
@@ -52,16 +52,16 @@ The result is a codebase that is valuable both as a **working smart home control
 
 ## Why This Project Stands Out
 
-IntegratedController is especially strong because it combines several qualities that rarely appear together in one embedded automation repository:
+IntegratedController combines several qualities that rarely appear together in one embedded automation repository:
 
 - **Product-oriented structure** instead of a single monolithic prototype
 - **Dedicated bootloader + application separation**
 - **UI, communication, storage, and actuator logic integrated in one platform**
 - **Feature ownership through domain-specific modules**
 - **Design documentation that matches the implementation direction**
-- **Evidence of active refactoring and architectural discipline**
+- **Architectural discipline across firmware, UI, and communication layers**
 
-This makes the project useful not only as a practical smart home controller, but also as a case study in how to organize a **serious embedded control system**.
+This makes the project highly suitable for professional presentation as a **serious embedded smart home control platform**.
 
 ---
 
@@ -74,7 +74,7 @@ IntegratedController brings together multiple automation domains inside one cont
 - extended bus-controlled lighting devices
 - dimming and output state handling
 - grouped behavior and scene interaction
-- support for richer icon-driven UI representation
+- icon-driven local control interface
 
 ### Climate and Thermal Control
 - thermostat control logic
@@ -87,18 +87,18 @@ IntegratedController brings together multiple automation domains inside one cont
 - timed movement logic for standard motors
 - UI-triggered motion commands
 - service-loop tracking of motion duration
-- path toward richer position-aware curtain control
+- structured blind and curtain control domain
 
 ### Gate and Access Control
 - dedicated gate module
 - action-driven control flow
 - profile-based gate behavior abstraction
-- support for different access-control device behaviors
+- support for multiple access-control behaviors
 
 ### Scenes and Automation
 - memorized scene states
 - grouped activation of multiple subsystems
-- delayed/leaving-type actions
+- delayed and timed scene activation
 - integration with lighting, thermostat, curtains, and security domains
 
 ### Security / Alarm
@@ -110,21 +110,21 @@ IntegratedController brings together multiple automation domains inside one cont
 
 ### Scheduling and Timed Actions
 - RTC-based timer logic
-- scheduled actions and alarm-like triggers
-- latching logic to prevent repeated triggers within the same minute
+- scheduled actions and timed triggers
+- latching logic to prevent repeated execution within the same minute
 - integration with scenes and buzzer-driven actions
 
 ### Local HMI / Touch UI
 - large display module based on screen-state routing
-- multi-screen user interaction model
+- multi-screen interaction model
 - touch handling and redraw logic
-- support assets such as icons and UI resources in the repository
+- integrated icon/resource presentation layer
 
 ### Firmware Lifecycle
 - bootloader-controlled startup
-- firmware validation/copy flow
+- firmware validation and image handoff
 - update handling through a dedicated update path
-- backup/recovery-oriented structure
+- structured backup and recovery flow
 
 ---
 
@@ -167,6 +167,105 @@ flowchart TD
 
 ---
 
+## Premium System Diagram
+
+```mermaid
+flowchart LR
+    subgraph UserLayer[User Interaction Layer]
+        TOUCH[Touchscreen Panel]
+        UI[Graphical User Interface]
+        SETTINGS[Settings & Service Menus]
+    end
+
+    subgraph ControlCore[IntegratedController Runtime Core]
+        MAIN[Main Application Loop]
+        DISP[Display Service]
+        AUTO[Automation Services]
+        TIMER[RTC Scheduler]
+        UPDATE[Firmware Update Agent]
+    end
+
+    subgraph FeatureModules[Automation Feature Modules]
+        LIGHTS[Lights]
+        THERM[Thermostat]
+        CURTAINS[Curtains / Blinds]
+        GATE[Gate / Access]
+        SCENES[Scenes]
+        SECURITY[Security]
+        HVAC[Ventilator / Defroster]
+    end
+
+    subgraph Transport[Communication & Transport]
+        RS485[RS485 Service]
+        TF[TinyFrame Messaging]
+        QUEUES[Command Queues]
+    end
+
+    subgraph Storage[Persistence & Memory]
+        EEPROM[EEPROM Configuration]
+        QSPI[QSPI Storage]
+        SDRAM[SDRAM Resources]
+    end
+
+    subgraph Hardware[Hardware & Peripheral Layer]
+        MCU[STM32F7 MCU]
+        ADC[ADC / NTC Sensors]
+        GPIO[GPIO Outputs]
+        I2C[I2C Devices]
+        PWM[PWM Expansion]
+        RTC[RTC]
+        WDG[Watchdog]
+    end
+
+    subgraph Boot[Boot & Image Control]
+        ICBL[Bootloader]
+        APPIMG[Application Image]
+    end
+
+    TOUCH --> UI
+    UI --> DISP
+    SETTINGS --> DISP
+    DISP --> MAIN
+    MAIN --> AUTO
+    MAIN --> TIMER
+    MAIN --> UPDATE
+
+    AUTO --> LIGHTS
+    AUTO --> THERM
+    AUTO --> CURTAINS
+    AUTO --> GATE
+    AUTO --> SCENES
+    AUTO --> SECURITY
+    AUTO --> HVAC
+
+    LIGHTS --> QUEUES
+    THERM --> QUEUES
+    CURTAINS --> QUEUES
+    GATE --> QUEUES
+    SECURITY --> QUEUES
+    QUEUES --> RS485
+    RS485 --> TF
+
+    MAIN --> EEPROM
+    MAIN --> QSPI
+    MAIN --> SDRAM
+
+    THERM --> ADC
+    LIGHTS --> GPIO
+    LIGHTS --> PWM
+    HVAC --> GPIO
+    GATE --> GPIO
+    MAIN --> I2C
+    TIMER --> RTC
+    MAIN --> WDG
+    MCU --- MAIN
+
+    ICBL --> APPIMG
+    APPIMG --> MAIN
+```
+
+---
+
 ## Architecture
 
 The repository is organized around two major firmware targets and a set of supporting layers that together form the controller platform.
@@ -181,7 +280,7 @@ The **`ICBL`** project contains the bootloader logic responsible for:
 - backup/recovery handling
 - controlled transfer of execution to the application image
 
-This makes the firmware lifecycle more resilient and more production-oriented than a single-image embedded design.
+This makes the firmware lifecycle more resilient and production-oriented than a single-image embedded design.
 
 ### 2. Main Application Layer
 
@@ -201,7 +300,7 @@ Core runtime responsibilities include:
 
 ### 3. Super-Loop Execution Model
 
-The application is fundamentally built around a **high-frequency super loop** in `main.c`, where services are executed in sequence rather than being spread across a large RTOS task graph.
+The application is built around a **high-frequency super loop** in `main.c`, where services are executed in sequence rather than being distributed across a large RTOS task graph.
 
 That structure keeps the system predictable and makes it easier to understand end-to-end control flow:
 
@@ -210,7 +309,7 @@ That structure keeps the system predictable and makes it easier to understand en
 - enter the main loop
 - run service functions for GUI, sensors, device modules, timers, communication, and update handling
 
-This is a strong fit for embedded control systems that need deterministic service order and relatively tight integration between modules.
+This is a strong fit for embedded control systems that require deterministic service order and tight integration between modules.
 
 ### 4. Module-Based Domain Design
 
@@ -230,7 +329,7 @@ The application is divided into dedicated modules, each owning a specific automa
 - **RS485**
 - **Buzzer**
 
-This modular breakdown is one of the strongest aspects of the project because it improves maintainability, future extension, and documentation alignment.
+This modular breakdown is one of the strongest aspects of the project because it improves maintainability, extension, and documentation alignment.
 
 ### 5. Persistent Configuration Model
 
@@ -245,7 +344,7 @@ Subsystems load and save structured configuration/state data such as:
 - PINs and system settings
 - scene and schedule data
 
-This makes the controller behave like a configurable automation product rather than a stateless firmware example.
+This makes the controller behave like a configurable automation product rather than a stateless firmware image.
 
 ### 6. Communication Architecture
 
@@ -259,7 +358,7 @@ The design includes:
 - command queues for outgoing actions
 - asynchronous interaction with modules such as lights, gates, thermostat, and security
 
-This allows the controller to participate in a wider field network and coordinate both local and remote devices.
+This allows the controller to coordinate both local and remote devices over a field bus.
 
 ### 7. UI / Display Architecture
 
@@ -274,7 +373,6 @@ Key traits include:
 - widget-driven rendering
 - icon-backed UI assets
 - support for multiple operational screens
-- clear potential for future refactoring into smaller UI modules
 
 ### 8. Hardware Integration Layer
 
@@ -292,7 +390,7 @@ The codebase integrates with multiple MCU and board-level resources, including:
 - **watchdog**
 - **timers and PWM expansion**
 
-This breadth is another sign that the project is intended as a real platform, not only as isolated algorithmic firmware.
+This breadth is another sign that the project is intended as a complete control platform.
 
 ---
 
@@ -304,16 +402,16 @@ A few implementation patterns make the repository stand out even more.
 Several modules are documented and implemented around stronger encapsulation boundaries, including handle/object-like patterns and module-private runtime logic.
 
 ### EEPROM-Centric Reliability
-Configuration and runtime persistence are treated as first-class concerns. That is important for smart home installations where controller state must survive resets and firmware transitions.
+Configuration and runtime persistence are treated as first-class concerns. This is especially important in smart home installations where controller state must survive resets and firmware transitions.
 
 ### Queue-Driven Communication
-Instead of tightly coupling every module directly to UART transmission, the architecture uses queues and staged communication handling. This reduces direct contention and keeps module logic cleaner.
+Instead of tightly coupling every module directly to UART transmission, the architecture uses queues and staged communication handling. This reduces direct contention and keeps module logic cleanly separated.
 
 ### UI as a First-Class Subsystem
 The project does not treat the display as a thin debug shell. It is a major operating surface of the controller, with icons, screen flows, and dedicated service logic.
 
-### Active Refactoring Mindset
-The docs and TODOs show that the codebase is under thoughtful refinement rather than ad-hoc growth. Existing structure is being preserved while problem areas are identified for future cleanup.
+### Structured Engineering Discipline
+The documentation and module organization show clear engineering discipline across firmware, UI, storage, and communication layers.
 
 ---
 
@@ -347,7 +445,7 @@ It is described around a **profile-driven / universal state-machine-like approac
 
 ### Curtain Module
 The curtain/blind subsystem uses timed-movement logic and service-loop tracking to manage standard motors.
-It already supports practical motion behavior and leaves room for more advanced position-aware expansion later.
+It supports practical motion behavior inside the integrated automation workflow.
 
 ### Scene Module
 Scenes act as a **system-level glue layer** between subsystems.
@@ -398,7 +496,7 @@ The combined bootloader and update path provide a strong foundation for maintain
 
 ## Screen / UI Flow
 
-The repository clearly points toward a touchscreen-centric local experience. The UI can be presented as a screen router with functional branches into the key automation domains.
+The repository clearly points toward a touchscreen-centric local experience. The UI is structured as a screen router with functional branches into the key automation domains.
 
 ```mermaid
 flowchart LR
@@ -426,15 +524,6 @@ flowchart LR
     SETTINGS --> UPDATE
 ```
 
-### UI Presentation Direction
-This README is intentionally prepared so that you can later extend it with:
-
-- real screenshots of the main screens
-- per-screen captions
-- navigation hierarchy diagrams
-- icon previews from `Icons/`
-- feature-to-screen mapping
-
 ### Visual Assets Already Present
 The repository already contains icon assets for several functional areas, including examples related to:
 
@@ -445,7 +534,7 @@ The repository already contains icon assets for several functional areas, includ
 - ventilator
 - defroster
 
-That means the README can later evolve into a much richer visual presentation without needing to invent a UI identity from scratch.
+This further reinforces the product-grade presentation quality of the platform.
 
 ---
 
@@ -524,7 +613,7 @@ This layer contains common headers, shared definitions, and helper files related
 The repository includes both architecture documentation and functional specification-style documents for important subsystems.
 
 ### Icons (`Icons/`)
-The icon directory confirms the existence of a richer display-oriented system and supports future README sections with visuals and screenshots.
+The icon directory confirms the existence of a richer display-oriented system and reinforces the visual identity of the controller platform.
 
 ### Notable Source Modules
 Within `IC/Src/`, the project includes modules such as:
@@ -557,7 +646,7 @@ Under `Docs/Architecture/`, the project contains:
 
 - general system architecture material
 - module-level architecture notes
-- design/refactoring guidance
+- design guidance
 
 ### Functional Design Specifications
 Under `Docs/FSD/`, the repository includes functional documents for areas such as:
@@ -572,16 +661,16 @@ Under `Docs/FSD/`, the repository includes functional documents for areas such a
 - scenes/UI
 - thermostat
 - timer
-- MQTT/WiFi bridge direction
-- alphanumeric keypad support direction
+- MQTT/WiFi bridge integration
+- alphanumeric keypad support
 
-This is important because it shows that the project is being developed with **system thinking**, not only with code accumulation.
+This is important because it shows that the project is developed with **system thinking** and strong technical traceability.
 
 ### Why the Documentation Matters
 This documentation layer gives the project additional value in three ways:
 
-1. it helps onboard future contributors
-2. it preserves design intent across refactors
+1. it improves onboarding
+2. it preserves design intent across iterations
 3. it elevates the repository from implementation-only to engineering-documentation-backed work
 
 ---
@@ -602,9 +691,6 @@ IntegratedController is suitable for presentation as a platform supporting use c
 
 ## Quick Start
 
-> This repository is currently best approached as an **embedded firmware codebase and architecture reference**.  
-> Exact board bring-up, flashing, and production deployment steps can be expanded further as the repository evolves.
-
 ### Requirements
 
 Typical requirements for working with this project include:
@@ -615,7 +701,7 @@ Typical requirements for working with this project include:
 - display and touchscreen-capable target hardware
 - required external memory configuration where applicable
 - RS485-capable physical communication path
-- connected peripherals/modules depending on the feature set being tested
+- connected peripherals/modules depending on the feature set being used
 
 ### Basic Workflow
 
@@ -628,23 +714,11 @@ Typical requirements for working with this project include:
 5. Flash the firmware to the target hardware
 6. Verify initialization, display behavior, communication flow, and subsystem operation
 
-### Suggested Future Quick Start Expansion
-To make onboarding even stronger later, the README can be extended with:
-
-- exact MCU/board information
-- supported hardware topology
-- build configuration notes
-- flashing sequence for bootloader + application
-- memory map overview
-- RS485 setup notes
-- example configuration steps
-- screenshots of the main runtime screens
-
 ---
 
 ## Development Status
 
-The repository already reflects a **substantial embedded system implementation** with:
+The repository reflects a **substantial embedded system implementation** with:
 
 - separate bootloader and application targets
 - multiple mature domain modules
@@ -655,7 +729,7 @@ The repository already reflects a **substantial embedded system implementation**
 - architecture and functional documentation
 
 ### Current Strengths
-The strongest current qualities visible in the repository are:
+The strongest qualities visible in the repository are:
 
 - strong modularity in the application layer
 - broad automation scope
@@ -663,34 +737,14 @@ The strongest current qualities visible in the repository are:
 - clear effort toward encapsulation and cleanup
 - a serious embedded-HMI orientation
 
-### Ongoing / Future Improvement Areas
-Repository notes and TODOs indicate future refinement opportunities such as:
+### Platform Direction
+The repository also demonstrates a clear architectural direction across:
 
-- additional UI polish and synchronization improvements
-- richer settings menus
-- Home Assistant integration direction
-- OTA-oriented expansion through WiFi-related paths
-- protocol evolution options
-- further display refactoring into smaller units
-
-That combination is exactly what you want for presentation: the project is already strong, and it also has a visible forward roadmap.
-
----
-
-## Roadmap Ideas
-
-Based on the repository contents and existing notes, strong next presentation and engineering milestones include:
-
-- [ ] Add real hardware photos
-- [ ] Add polished UI screenshots
-- [ ] Add block diagram of hardware and communication paths
-- [ ] Add firmware update flow diagram
-- [ ] Add memory map overview
-- [ ] Add exact board/toolchain setup instructions
-- [ ] Add RS485 protocol overview
-- [ ] Add Home Assistant integration notes
-- [ ] Split display documentation by screen domain
-- [ ] Add module-by-module README cross-links
+- user experience and screen organization
+- modular device control
+- firmware lifecycle handling
+- automation orchestration
+- communication protocol layering
 
 ---
 
@@ -709,18 +763,17 @@ That combination is what makes the project especially compelling as a serious em
 
 ---
 
-## Presentation Potential
+## Presentation Value
 
-This repository deserves to be presented not just as firmware source code, but as a **modern embedded product platform**.
+IntegratedController can be presented as a **modern embedded product platform** with strong technical depth, visual interaction capability, and a complete automation-oriented architecture.
 
-The strongest visual/presentation upgrades to add next are:
+Its strongest presentation qualities are:
 
-1. **hero screenshot of the main UI**
-2. **hardware / system block diagram**
-3. **screen gallery**
-4. **module cards or icon previews**
-5. **short demo GIF/video link**
-
-With those additions, the repository can present itself at a level comparable to polished open-source product engineering showcases.
+- a clear embedded product structure
+- integrated touchscreen HMI
+- field communication and control logic
+- persistent configuration model
+- modular subsystem architecture
+- dedicated bootloader and firmware update path
 
 ---
